@@ -1,4 +1,3 @@
-
 import sys
 import globalVariables as gv
 import matplotlib.pyplot as plt

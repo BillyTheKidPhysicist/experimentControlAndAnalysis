@@ -135,12 +135,12 @@ class Sweeper:
         self.galvoOut.close()
         self.lithiumRefIn.close()
     def _initialize_Cameras(self):
-        if self.GUI.cameraVar.get()=='BOTH':
+        if self.GUI.cameraVarData.get()=='BOTH':
             self.cameraFar=Camera('FAR', self.expTimeFar, self.imageParamFar,bin=self.binSizeFar)
             self.cameraNear=Camera('NEAR', self.expTimeFar, self.imageParamNear,bin=self.binSizeNear)
-        elif self.GUI.cameraVar.get()=='NEAR':
+        elif self.GUI.cameraVarData.get()=='NEAR':
             self.cameraNear=Camera('NEAR', self.expTimeFar, self.imageParamNear,bin=self.binSizeNear)
-        elif self.GUI.cameraVar.get()=='FAR':
+        elif self.GUI.cameraVarData.get()=='FAR':
             self.cameraFar=Camera('FAR',self.expTimeFar,self.imageParamFar,bin=self.binSizeFar)
         else:
             gv.error_Sound()

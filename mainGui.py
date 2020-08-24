@@ -35,11 +35,11 @@ class ExperimentGUI:
         lbl1 = tk.Label(self.window, text='camera')
         lbl1.grid(column=0, row=0)
 
-        self.cameraVar = tk.StringVar(self.window)
-        self.settingsList.append(self.cameraVar)
-        self.cameraVar.set("NEAR")
+        self.cameraVarData = tk.StringVar(self.window)
+        self.settingsList.append(self.cameraVarData)
+        self.cameraVarData.set("NEAR")
         cameraChoice = ["NEAR", "FAR", 'BOTH']
-        CAMERA_MENU = tk.OptionMenu(self.window, self.cameraVar, *cameraChoice)
+        CAMERA_MENU = tk.OptionMenu(self.window, self.cameraVarData, *cameraChoice)
         CAMERA_MENU.grid(column=1, row=0,columnspan=2)
 
         # ----------------row 1-------------------
@@ -221,15 +221,102 @@ class ExperimentGUI:
 
         btn1 = tk.Button(self.window, text='Li reference check', command=self.Li_Reference_Check)
         btn1.grid(column=0, row=15)
-        
+
+        #-----------------------------------------------------------
+        #-------------data analysis section-------------------------
+        #-----------------------------------------------------------
+        lbl16=tk.Label(self.window, text="---------image analysis----------", font=('Arial', 20))
+        lbl16.grid(column=0, row=20, sticky='W', columnspan=10)
+
+        #----------------row 21------------
+        self.cameraVarAnl=tk.StringVar(self.window)
+        self.settingsList.append(self.cameraVarAnl)
+        self.cameraVarAnl.set("NEAR")
+        self.settingsList.append(self.cameraVarAnl)
+        cameraChoiceAnl=["NEAR", "FAR"]
+        CAMERA_MENU_Anl=tk.OptionMenu(self.window, self.cameraVarAnl, *cameraChoiceAnl)
+        CAMERA_MENU_Anl.grid(column=0, row=21, columnspan=1)
+
+        #---------------cheat method-----------------
+        #cheatVar=tk.IntVar()
+        #chk1=tk.Checkbutton(self.window, text="cheat", variable=cheatVar)
+        #chk1.grid(column=2, row=21, columnspan=1)
+#
+        #lbl25=tk.Label(self.window, text='offset')
+        #lbl25.grid(column=3, row=21, sticky='W', columnspan=1)
+        #showFitVar=tk.IntVar()
+        #chk2=tk.Checkbutton(self.window, text="dont show fit", variable=showFitVar)
+        #chk2.grid(column=5, row=21, columnspan=1)
+#
+        #OFFSET_BOX=tk.Entry(self.window)
+        #OFFSET_BOX.config(width=10)
+        #OFFSET_BOX.grid(column=4, row=21, sticky='W', columnspan=1)
+
+        #--------------row 22------------------------------
+
+
+        lbl20=tk.Label(self.window, text='folder path')
+        lbl20.grid(column=0, row=22, sticky='W', columnspan=2)
+
+        self.anlFolderPathBox=tk.Entry(self.window)
+        self.anlFolderPathBox.config(width=50)
+        self.anlFolderPathBox.grid(column=2, row=22, sticky='W', columnspan=5)
+        self.settingsList.append(self.anlFolderPathBox)
+
+        #----------------row 23---------------------
+
+
+        lbl21=tk.Label(self.window, text='file name')
+        lbl21.grid(column=0, row=23, sticky='W', columnspan=2)
+
+        self.anlFileNameBox=tk.Entry(self.window)
+        self.anlFileNameBox.config(width=20)
+        self.anlFileNameBox.grid(column=2, row=23, sticky='W', columnspan=2)
+
+
+        #--------------row 24------------------------------
+
+        lbl6=tk.Label(self.window, text='x1')
+        lbl6.grid(column=0, row=24, sticky='E')
+        self.X1Anl=tk.Entry(self.window)
+        self.X1Anl.config(width=dimBoxWidth)
+        self.X1Anl.grid(column=1, row=24, sticky='W')
+
+        lbl7=tk.Label(self.window, text='x2')
+        lbl7.grid(column=2, row=24, sticky='E')
+        self.X2Anl=tk.Entry(self.window)
+        self.X2Anl.config(width=dimBoxWidth)
+        self.X2Anl.grid(column=3, row=24, sticky='W')
+
+        #--------------------row 25------------
+        lbl8=tk.Label(self.window, text='y1')
+        lbl8.grid(column=0, row=25, sticky='E')
+        self.Y1Anl=tk.Entry(self.window)
+        self.Y1Anl.config(width=dimBoxWidth)
+        self.Y1Anl.grid(column=1, row=25, sticky='W')
+
+        lbl9=tk.Label(self.window, text='y2')
+        lbl9.grid(column=2, row=25, sticky='E')
+        self.Y2Anl=tk.Entry(self.window)
+        self.Y2Anl.config(width=dimBoxWidth)
+        self.Y2Anl.grid(column=3, row=25, sticky='W')
+
+        #-------------row 26----------------
+        btn4=tk.Button(self.window, text='analyze', font=("Arial", 10), background="orange", command=self.do_Data_Analysis)
+        btn4.grid(column=0, row=26, columnspan=1)
+
         self.load_Settings()
         #it's a pain when the directory is empty because I can't remember which way the slashes go. If the directory
-        #is empty go ahead and fill it with what I would almost certainly want to start with
+        #is empty go ahead and fill it with what I would almost certainly want to start with. Only works on windows
         if self.dataFolderPathBox.get()=='':
             self.dataFolderPathBox.insert(0,'C:\Data')
         if self.dataFileNameBox.get()=='':
             self.dataFileNameBox.insert(0,'sumFkngName')
 
+        if self.anlFolderPathBox.get()=='':
+            self.anlFolderPathBox.insert(0,'C:\Data')
+        if self.anlFileNameBox.get()=='':
+            self.anlFileNameBox.insert(0,'sumFkngName')
 
         self.window.protocol("WM_DELETE_WINDOW", self.close_GUI)
         self.update_Flow_Rate()
@@ -306,6 +393,8 @@ class ExperimentGUI:
             print('YOU ALREADY HAVE A FILE WITH THAT NAME IN THAT FOLDER')
             gv.error_Sound()
             sys.exit()
+    def do_Data_Analysis(self):
+        pass
     def aquire_Data(self):
         self.catch_Errors()
         self.save_Settings()
