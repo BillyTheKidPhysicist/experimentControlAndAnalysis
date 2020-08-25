@@ -162,7 +162,7 @@ class Camera:
         try:
             self.cameraIndex=fli.FLIOpen('flipro0', 'usb', 'camera')
         except:
-            raise Exception('NO CAMERA CONNECTED, OR INCORRECT CAMERA CONNECTED. READ COMMENTS BELOW')
+            raise Exception('NO FLI CAMERA CONNECTED, OR INCORRECT FLI CAMERA CONNECTED. READ COMMENTS BELOW IN CODE FOR MORE INFO')
             #For some reason when trying to get a list of connected FLI cameras and their names if there are none
             #connected then a silent error occurs and python exits. This does not occur if I do FLIOpen first, but it
             #depends on me knowing the name of the camera which I think is always 'flipro0' for the first one. This error

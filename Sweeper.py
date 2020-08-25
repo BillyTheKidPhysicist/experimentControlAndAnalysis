@@ -38,8 +38,8 @@ class Sweeper:
         self.numExp=int(GUI.expNumBox.get())
         self.imageStartVolt=float(GUI.startVoltBox.get())
         self.imageStopVolt = float(GUI.stopVoltBox.get())
-        self.expTimeNear=int(GUI.expNearBox.get())
-        self.expTimeFar=int(GUI.expFarBox.get())
+        self.expTimeNear=int(GUI.expTimeNearBox.get())
+        self.expTimeFar=int(GUI.expTimeFarBox.get())
         self.binSizeNear=int(self.GUI.binSizeNearBox.get())
         self.binSizeFar=int(self.GUI.binSizeFarBox.get())
 
@@ -155,7 +155,7 @@ class Sweeper:
             gv.error_Sound()
             raise Exception('NO VALID CAMERA NAME PROVIDED')
     def _take_Exposures(self):
-        if self.GUI.cameraVar.get()=='BOTH':
+        if self.GUI.cameraVarData.get()=='BOTH':
             resultsDict={} #this is used to add the images taken concurrently. I use a dictionary so I can keep track of
                 #which image belongs to which camera
             T1=threading.Thread(target=self._take_Exposure_Wrapper,args=(resultsDict,self.cameraNear))
@@ -167,22 +167,22 @@ class Sweeper:
             imgNear=resultsDict['NEAR']
             imgFar=resultsDict['FAR']
             return [imgNear,imgFar]
-        elif self.GUI.cameraVar.get()=='NEAR':
+        elif self.GUI.cameraVarData.get()=='NEAR':
             imgNear=self.cameraNear.aquire_Image()
             return [imgNear,None]
-        elif self.GUI.cameraVar.get()=='FAR':
+        elif self.GUI.cameraVarData.get()=='FAR':
             imgFar=self.cameraFar.aquire_Image()
             return [None,imgFar]
         else:
             gv.error_Sound()
             raise Exception('NO VALID CAMERA NAME PROVIDED')
     def _close_Cameras(self):
-        if self.GUI.cameraVar.get()=='BOTH':
+        if self.GUI.cameraVarData.get()=='BOTH':
             self.cameraNear.close()
             self.cameraFar.close()
-        elif self.GUI.cameraVar.get()=='NEAR':
+        elif self.GUI.cameraVarData.get()=='NEAR':
             self.cameraNear.close()
-        elif self.GUI.cameraVar.get()=='FAR':
+        elif self.GUI.cameraVarData.get()=='FAR':
             self.cameraFar.close()
         else:
             raise Exception('NO VALID CAMERA NAME PROVIDED')

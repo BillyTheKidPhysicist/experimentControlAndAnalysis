@@ -1,3 +1,4 @@
+from datetime import datetime
 import os.path
 import time
 import globalVariables as gv
@@ -12,7 +13,8 @@ import numpy as np
 #import matplotlib.pyplot as plt
 import tkinter as tk
 import MakeMHzScale
-import DataAnalysis
+from Analyzer import Analyzer
+import scipy.interpolate as spi
 
 
 class ExperimentGUI:
@@ -117,18 +119,18 @@ class ExperimentGUI:
         lbl9 = tk.Label(self.window, text='exp time (ms)')
         lbl9.grid(column=0, row=4, sticky='W')
 
-        self.expNearBox = tk.Entry(self.window)
-        self.settingsList.append(self.expNearBox)
-        self.expNearBox.config(width=dimBoxWidth)
-        self.expNearBox.grid(column=1, row=4, sticky='W')
+        self.expTimeNearBox = tk.Entry(self.window)
+        self.settingsList.append(self.expTimeNearBox)
+        self.expTimeNearBox.config(width=dimBoxWidth)
+        self.expTimeNearBox.grid(column=1, row=4, sticky='W')
 
         lbl10 = tk.Label(self.window, text='exp time (ms)')
         lbl10.grid(column=5, row=4, sticky='W')
 
-        self.expFarBox = tk.Entry(self.window)
-        self.settingsList.append(self.expFarBox)
-        self.expFarBox.config(width=dimBoxWidth)
-        self.expFarBox.grid(column=6, row=4, sticky='W')
+        self.expTimeFarBox = tk.Entry(self.window)
+        self.settingsList.append(self.expTimeFarBox)
+        self.expTimeFarBox.config(width=dimBoxWidth)
+        self.expTimeFarBox.grid(column=6, row=4, sticky='W')
         #-----------------row 5-------------------------
 
         lbl9 = tk.Label(self.window, text='bin size')
@@ -209,7 +211,6 @@ class ExperimentGUI:
         flowBtn.grid(column=13, row=2, columnspan=2)
 
         self.flowRateDisplayVar = tk.StringVar()
-        self.settingsList.append(self.flowRateDisplayVar)
         self.flowRateDisplayVar.set("0.0")
 
         lbl151 = tk.Label(self.window, text='Current flowrate (SCCM)')
@@ -232,13 +233,13 @@ class ExperimentGUI:
         self.cameraVarAnl=tk.StringVar(self.window)
         self.settingsList.append(self.cameraVarAnl)
         self.cameraVarAnl.set("NEAR")
-        self.settingsList.append(self.cameraVarAnl)
         cameraChoiceAnl=["NEAR", "FAR"]
         CAMERA_MENU_Anl=tk.OptionMenu(self.window, self.cameraVarAnl, *cameraChoiceAnl)
         CAMERA_MENU_Anl.grid(column=0, row=21, columnspan=1)
 
         #---------------cheat method-----------------
         #cheatVar=tk.IntVar()
+        #cheatVar=tk.IntVar()file
         #chk1=tk.Checkbutton(self.window, text="cheat", variable=cheatVar)
         #chk1.grid(column=2, row=21, columnspan=1)
 #
@@ -272,34 +273,39 @@ class ExperimentGUI:
         self.anlFileNameBox=tk.Entry(self.window)
         self.anlFileNameBox.config(width=20)
         self.anlFileNameBox.grid(column=2, row=23, sticky='W', columnspan=2)
+        self.settingsList.append(self.anlFileNameBox)
 
 
         #--------------row 24------------------------------
 
         lbl6=tk.Label(self.window, text='x1')
         lbl6.grid(column=0, row=24, sticky='E')
-        self.X1Anl=tk.Entry(self.window)
-        self.X1Anl.config(width=dimBoxWidth)
-        self.X1Anl.grid(column=1, row=24, sticky='W')
+        self.x1BoxAnl=tk.Entry(self.window)
+        self.x1BoxAnl.config(width=dimBoxWidth)
+        self.x1BoxAnl.grid(column=1, row=24, sticky='W')
+        self.settingsList.append(self.x1BoxAnl)
 
         lbl7=tk.Label(self.window, text='x2')
         lbl7.grid(column=2, row=24, sticky='E')
-        self.X2Anl=tk.Entry(self.window)
-        self.X2Anl.config(width=dimBoxWidth)
-        self.X2Anl.grid(column=3, row=24, sticky='W')
+        self.x2BoxAnl=tk.Entry(self.window)
+        self.x2BoxAnl.config(width=dimBoxWidth)
+        self.x2BoxAnl.grid(column=3, row=24, sticky='W')
+        self.settingsList.append(self.x2BoxAnl)
 
         #--------------------row 25------------
         lbl8=tk.Label(self.window, text='y1')
         lbl8.grid(column=0, row=25, sticky='E')
-        self.Y1Anl=tk.Entry(self.window)
-        self.Y1Anl.config(width=dimBoxWidth)
-        self.Y1Anl.grid(column=1, row=25, sticky='W')
+        self.y1BoxAnl=tk.Entry(self.window)
+        self.y1BoxAnl.config(width=dimBoxWidth)
+        self.y1BoxAnl.grid(column=1, row=25, sticky='W')
+        self.settingsList.append(self.y1BoxAnl)
 
         lbl9=tk.Label(self.window, text='y2')
         lbl9.grid(column=2, row=25, sticky='E')
-        self.Y2Anl=tk.Entry(self.window)
-        self.Y2Anl.config(width=dimBoxWidth)
-        self.Y2Anl.grid(column=3, row=25, sticky='W')
+        self.y2BoxAnl=tk.Entry(self.window)
+        self.y2BoxAnl.config(width=dimBoxWidth)
+        self.y2BoxAnl.grid(column=3, row=25, sticky='W')
+        self.settingsList.append(self.y2BoxAnl)
 
         #-------------row 26----------------
         btn4=tk.Button(self.window, text='analyze', font=("Arial", 10), background="orange", command=self.do_Data_Analysis)
@@ -331,7 +337,7 @@ class ExperimentGUI:
         #flowOut.close()
         self.window.destroy()
         sys.exit()
-    def catch_Errors(self):
+    def catch_Errors_Aquisition(self):
         #this checks all the boxes that should be numbers to see if they contain a number. If this isn't done here
         #then a less helpful error will be thrown when trying to convert nonsense into a number
         tempList=[]
@@ -343,8 +349,8 @@ class ExperimentGUI:
         tempList.append(self.x2FarBox.get())
         tempList.append(self.y1FarBox.get())
         tempList.append(self.y2FarBox.get())
-        tempList.append(self.expFarBox.get())
-        tempList.append(self.expNearBox.get())
+        tempList.append(self.expTimeFarBox.get())
+        tempList.append(self.expTimeNearBox.get())
         tempList.append(self.expNumBox.get())
         tempList.append(self.binSizeFarBox.get())
         tempList.append(self.binSizeNearBox.get())
@@ -393,19 +399,229 @@ class ExperimentGUI:
             print('YOU ALREADY HAVE A FILE WITH THAT NAME IN THAT FOLDER')
             gv.error_Sound()
             sys.exit()
+    def catch_Errors_Analysis(self):
+        fileName=self.anlFileNameBox.get()
+        folderPath=self.anlFolderPathBox.get()
+        try:
+            x1=int(self.x1BoxAnl.get())
+            x2=int(self.x2BoxAnl.get())
+            y1=int(self.y1BoxAnl.get())
+            y2=int(self.y2BoxAnl.get())
+        except:
+            print('---------ERROR-----------')
+            print('YOU MUST ENTER A NON NEGATIVE NUMBER IN THE IMAGE DIMENSION BOX.')
+            print('YOU MAY HAVE LEFT THEM BLANK OR ENTER A LETTER, A SPACE, OR SOME OTHER NON NUMBER CHARACTER')
+            gv.error_Sound()
+            sys.exit()
+        if x2<x1 or y2<y1:
+            print('---------ERROR-------------')
+            print('X2 AND Y2 MUST NOT BE SMALLER THAN X1 AND Y1')
+            gv.error_Sound()
+            sys.exit()
+        if x2==x1 or y1==y2:
+            print('-----------ERROR---------')
+            print('X2 AND Y2 CANNOT EQUAL X1 AND Y1')
+            gv.error_Sound()
+            sys.exit()
+        if folderPath=='':
+            print('-----ERROR-----------')
+            print('YOU HAVENT ENTERED ANYTHING FOR THE FOLDERPATH')
+            gv.error_Sound()
+            sys.exit()
+        if fileName=='':
+            print('-----ERROR-----------')
+            print('YOU HAVENT ENTERED ANYTHING FOR THE FOLDERPATH')
+            gv.error_Sound()
+            sys.exit()
+
+
+        if os.path.isdir(folderPath)==False:
+            print('-----ERROR-----------')
+            print('YOU HAVE ENTERED AN INVALID FOLDERPATH')
+            gv.error_Sound()
+            sys.exit()
+
+
+
     def do_Data_Analysis(self):
-        pass
+        self.catch_Errors_Analysis() #check if the user has any messed up input
+        fileName=self.anlFileNameBox.get()
+        folderPath=self.anlFolderPathBox.get()
+        x1=int(self.x1BoxAnl.get())
+        x2=int(self.x2BoxAnl.get())
+        y1=int(self.y1BoxAnl.get())
+        y2=int(self.y2BoxAnl.get())
+        camName=self.cameraVarAnl.get() #which camera is being analyzed
+
+
+        fitsFile = fits.open(folderPath+'\\'+fileName+camName+'.fits') #load the fits file into memory as a numpy array. This can
+            #take a little while
+        images = fitsFile[0].data #there is something called a header attached to a fit file. We only want the numpy array
+        fitsFile.close()
+        images=np.rot90(np.rot90(images)) #images are rotate 180 degrees off
+        yMax=images.shape[2]
+        images=images[:,yMax-y2:yMax-y1,x1:x2] #images is a 3 dimensional array where the first dimension is the images
+            #the second is the rows (the y) and the third is the column (the x). Zero is the top left, not the bottom
+            # right. It makes this a little tricky
+        images=np.sum(np.sum(images, axis=2),axis=1) #sum along one axis and then the other. The result is an array where
+            #each entry is the sum of all the pixels in that image.
+
+        DAQData=np.loadtxt(folderPath+'\\'+fileName+'DAQData.csv',self.DAQDataArr,delimiter=',')
+        #MHzScaleArr=MakeMHzScale.make_MHz_Scale(DAQData)
+        MHzScaleArr=np.linspace(0,1200,num=DAQData.shape[0])
+        analyzer=Analyzer(images,MHzScaleArr)
+        images=analyzer.spectralProfile(MHzScaleArr,1,600,.2,45)+.5*(np.random.random(MHzScaleArr.shape)-.5)
+
+        analyzer=Analyzer(images, MHzScaleArr)
+        analyzer.fit_Image_Data()
+        print(analyzer.T)
+
+
+        self.save_Spectral_Fit_Plot(analyzer,DAQData)
+        #plt.plot(MHzScaleArr,images)
+        #plt.plot(MHzScaleArr,analyzer.fitFunc(MHzScaleArr))
+        #plt.show()
+    def save_Spectral_Fit_Plot(self,analyzer,DAQData):
+        fileName=self.anlFileNameBox.get()
+        folderPath=self.anlFolderPathBox.get()
+        infoFile=open(folderPath+'\\'+fileName+'Info.txt')
+        startVolt=float(infoFile.readline().split(',')[1])
+        stopVolt=float(infoFile.readline().split(',')[1])
+        infoFile.close()
+        galvoVoltArr=DAQData[:,0]
+        liRefVoltArr=DAQData[:,1]
+        #now I need to use the image start and stop volt to make frequency values at each image. The galvo is very linear
+        #so I do a simple polynomial fit
+        P=np.polyfit(galvoVoltArr,analyzer.MHzScaleArr,2)
+        voltArr=np.linspace(startVolt,stopVolt,num=analyzer.imageAvgArr.shape[0])
+
+        #now make the array with the polynomials. They are returned in the opposite order I would expect
+        x=P[2]
+        x+=P[1]*voltArr
+        x+=P[0]*voltArr**2
+        print(x)
+
+
+
+        plt.close('all')
+
+
+
+        #temp=round(1000*analyzer.T)
+        #liRefForPlot=DAQData[:,1]
+        ##create array of lithium PMT referance voltages to include with plot
+        #liRefForPlot=liRefVoltage[start:stop+1]  #trim to only the value we care about
+        #liRefForPlot=-liRefForPlot  #flip it cause it's negative
+        #valueAdjust=(pixelValue.max()-pixelValue.min())/(liRefForPlot.max()-liRefForPlot.min())
+        #liRefForPlot=.5*liRefForPlot*valueAdjust  #normalize to samae height as pixel value
+        #liRefForPlot+=pixelValue.min()  #set the offset correctly
+#
+        #refFitForPlot=-refFit[start:stop+1]
+        #refFitForPlot=.5*refFitForPlot*valueAdjust
+        #refFitForPlot+=pixelValue.min()
+#
+        #analysisPlot=plt.figure(num=2, figsize=(10, 7))
+        #plt.locator_params(nbins=20)
+        #max=pixelValue.max()
+        #ypos=(max-pixelValue.min())*.01+max
+        #plt.axhline(y=max, color='black', linestyle='--')
+        #plt.text(MHzScale[start], ypos, str(int(max)))
+        #plt.axvline(x=F0, color='black', linestyle=':')  #centered on signal peak
+        #plt.axvline(x=zeroPoint, color='black', linestyle=':', ymax=.5)  #centered on reference cell zero point
+        #plt.plot(MHzScale[start:stop+1], pixelValue, label="pixel value")
+        ##make high res fit
+        #x=np.linspace(MHzScale[start], MHzScale[stop], num=10000)
+        #y=dataAnalysis.spectralProfile(x, *PF)
+        #plt.plot(x, y, label="fit")
+        #plt.plot(MHzScale[start:stop+1], liRefForPlot, color='r', label="reference (AU)", alpha=.5)
+        #plt.plot(MHzScale[start:stop+1], refFitForPlot, '--', color='g', label="reference fit", alpha=.5)
+        #plt.xlabel("MHz relative to F=2 transition")
+#
+        #plt.ylabel("pixel value")
+        #velocity=np.abs(gv.cLight*F0/(gv.Li_D2_Freq/1E6))
+#
+        #fitFunc=spi.interp1d(MHzScale[start:stop+1], pixelValue)  #to find fwhm
+        #xNew=np.linspace(MHzScale[start], MHzScale[stop], 10000)
+        #yNew=fitFunc(xNew)
+        #yNew=yNew-np.average(yNew[:20])
+        #yNew=-np.abs(yNew-(yNew.max()-yNew.min())/2)+(yNew.max()-yNew.min())*.01
+        #peaks=sps.find_peaks(yNew, height=0)[0]
+#
+        #if peaks.shape[0]!=2:
+        #    print("error! more than two peaks found during search for fwhm")
+        #    plt.close()
+        #    plt.plot(xNew, yNew)
+        #    plt.show()
+        #    sys.exit()
+        #fwhm=np.round(np.abs(xNew[peaks[0]]-xNew[peaks[1]]), 1)
+#
+        #round_to_n=lambda x, n:round(x, -int(math.floor(math.log10(x)))+(n-1))
+        #sigSize=round_to_n(pixelValue.max()-np.average(pixelValue[:10]), 3)
+        #titleString=fitsFilePath+'\n'
+        #titleString+="Temperature~ "+str(temp)+' mk (dubious) |'+' FWHM: '+str(fwhm)+' mhz|'
+        #titleString+='\n'+'Atom velocity: '+str(np.round(velocity, 1))+'m/s |'
+        #titleString+=' signal size: '+str(sigSize)+' au | center frequency: '+str(np.round(F0, 1))+' mhz |'
+        #titleString+='\n'+'region (x,y):'+str(region)+' | '+"Mhz per galvo volt= "+str(int(scale))+' |'+'\n'
+        #titleString+=' created:'+str(datetime.date.today())
+        #if cheatVar.get()==1:
+        #    titleString+="cheat method"
+        #plt.title(titleString)
+        #plt.tight_layout()
+        #plotFileName=plotFilePath+"("+str(X1Anl_BOX.get())+','+str(X2Anl_BOX.get())+")"
+        #plotFileName+="("+str(Y1Anl_BOX.get())+','+str(Y2Anl_BOX.get())+")"
+        #plotFileName+=".png"
+        #plt.grid()
+        #plt.legend()
+        #plt.savefig(plotFileName)
+        #analysisPlot.show()
+
     def aquire_Data(self):
-        self.catch_Errors()
+        self.catch_Errors_Aquisition()
         self.save_Settings()
         sweeper=Sweeper(self)
         sweeper.sweep()
         self.save_Fits_Files()
         self.save_Data()
         self.make_Info_File()
-        #self.analyze_Data()
+        #self.make_Lithium_Ref_Plot()
+    def make_Lithium_Ref_Plot(self):
+        fileName=self.dataFileNameBox.get()
+        folderPath=self.dataFolderPathBox.get()
+        x=self.DAQDataArr[:,0] #galvo voltage
+        y=self.DAQDataArr[:,1] #lithium ref voltage
+        plt.figure(figsize=(13,8))
+        plt.plot(x,y)
+        plt.title("Li Ref PMT Voltage vs Applied Galvo Voltage")
+        plt.xlabel('Galvo Voltage, v')
+        plt.ylabel('Lithium Ref PMT Voltage, v')
+        plt.grid()
+        plt.savefig(folderPath+'\\'+fileName+'LiRefVoltage')
+
+
     def make_Info_File(self):
-        return
+        fileName=self.dataFileNameBox.get()
+        folderPath=self.dataFolderPathBox.get()
+
+        file=open(folderPath+'\\'+fileName+'Info.txt','w')
+        file.write('Image aquisition start volt, '+str(self.startVoltBox.get())+'\n')
+        file.write('Image aquisition stop volt, '+str(self.stopVoltBox.get())+'\n')
+        file.write('Camera selection,'+str(self.cameraVarData.get())+'\n')
+        file.write('Number of exposures(same for both cameras), '+str(self.expNumBox.get())+'\n')
+        file.write('Exposure time Near, '+str(self.expTimeNearBox.get())+'\n')
+        file.write('Exposure time Far, '+str(self.expTimeFarBox.get())+'\n')
+        file.write('x1Near, '+str(self.x1NearBox.get())+'\n')
+        file.write('x2Near, '+str(self.x2NearBox.get())+'\n')
+        file.write('y1Near, '+str(self.y1NearBox.get())+'\n')
+        file.write('y2Near, '+str(self.y2NearBox.get())+'\n')
+        file.write('x1Far, '+str(self.x1FarBox.get())+'\n')
+        file.write('x2Far, '+str(self.x2FarBox.get())+'\n')
+        file.write('y1Far, '+str(self.y1FarBox.get())+'\n')
+        file.write('y2Far, '+str(self.y2FarBox.get())+'\n')
+        file.write('Data and time of file creation (year,month,day,time), '+str(datetime.now())+'\n')
+
+        file.close()
+
+
     def save_Data(self):
         folderPath=self.dataFolderPathBox.get()
         fileName=self.dataFileNameBox.get()
@@ -430,12 +646,6 @@ class ExperimentGUI:
             hdul=fits.HDUList([hdu])
             hdul.writeto(folderPath+'\\'+fileName+'Far.fits')
         print('images saved to fits files')
-    def analyze_Data(self):
-        MHzScaleArr=MakeMHzScale.make_MHz_Scale(self.DAQData)
-        #PF=DataAnalysis.fitPixelData(MHzScaleArr)
-        plt.plot(MHzScaleArr,self.DAQData[:,1])
-        plt.show()
-
 
     def make_Flow(self):
         None
@@ -450,7 +660,7 @@ class ExperimentGUI:
         i=0
         for item in file:
             item=item.strip()
-            if i>=len(self.settingsList)-1:
+            if i>=len(self.settingsList):
                 None
             else:
                 if isinstance(self.settingsList[i],tk.StringVar):

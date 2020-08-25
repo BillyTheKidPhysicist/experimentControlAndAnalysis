@@ -11,7 +11,7 @@ def make_MHz_Scale(DAQData):
 
 class MHzScale:
     def __init__(self,DAQData):
-        self.DAQData=np.loadtxt('data.txt')
+        self.DAQData=DAQData
         self.galvoVolt=self.DAQData[:, 0]  #The voltage read in from the run of the galvo output
         self.liRefVolt=self.DAQData[:, 1]  #the voltage from the diode/PMT looking at referance flourescence
     def make_MHZ_Scale(self):
@@ -19,8 +19,6 @@ class MHzScale:
         MHzPerVolt=(gv.Li_2S_F2_F1_Sep/1E6)/(peak2VoltMean-peak1VoltMean)
         self.galvoVolt=self.DAQData[:,0]
         MHzScaleArr=(self.galvoVolt-peak1VoltMean)*MHzPerVolt
-        plt.plot(self.galvoVolt,self.liRefVolt)
-        plt.show()
         return MHzScaleArr
     def find_Peaks(self):
         pointsPerVolt=self.galvoVolt[self.galvoVolt<self.galvoVolt[0]+1].shape[0] #about how many points per volt there are. of course
