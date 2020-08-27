@@ -15,6 +15,7 @@ class MHzScale:
         self.galvoVolt=self.DAQData[:, 0]  #The voltage read in from the run of the galvo output
         self.liRefVolt=self.DAQData[:, 1]  #the voltage from the diode/PMT looking at referance flourescence
     def make_MHZ_Scale(self):
+        #assumes the frequency versus voltage curve is straight
         peak1VoltMean, peak2VoltMean=self.find_Peaks()
         MHzPerVolt=(gv.Li_2S_F2_F1_Sep/1E6)/(peak2VoltMean-peak1VoltMean)
         self.galvoVolt=self.DAQData[:,0]

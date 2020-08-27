@@ -7,9 +7,9 @@ import globalVariables as gv
 import matplotlib.pyplot as plt
 
 class Analyzer:
-    def __init__(self,imagesAvgArr,MHzScaleArr):
+    def __init__(self,imagesAvgArr,imageFreqMHzArr):
         self.imageAvgArr=imagesAvgArr
-        self.MHzScaleArr=MHzScaleArr
+        self.imageFreqMHzArr=imageFreqMHzArr
         self.fitFunc=None #A function that returns the spectral profile of the fit
         self.F0=None #the value of the center of the peak of the profile
         self.FWHM=None #the FWHM of the data
@@ -66,7 +66,7 @@ class Analyzer:
         smooth=self.imageAvgArr#spsi.savgol_filter(pixelValue,pixelValue.shape[0]//10+1,3) temporarily changed
         minHeight=(np.max(smooth)-np.min(smooth))/2.0 +np.min(smooth)
         peak=spsi.find_peaks(smooth,height=minHeight)[0][0]
-        error=np.ones(self.MHzScaleArr.shape[0])
+        error=np.ones(self.imageFreqMHzArr.shape[0])
         #error[peak+2]=.2
         #error[peak-2]=.2
         #error[peak+1]=.1
@@ -79,7 +79,7 @@ class Analyzer:
         #cG: vertical offset
         #dF0G: FWHM of doppler broadening
         aG=np.max(self.imageAvgArr[10:-10])-np.average(self.imageAvgArr[10:-10])    #height constant
-        bG=self.MHzScaleArr[np.argmax(self.imageAvgArr)]  #x axis offset
+        bG=self.imageFreqMHzArr[np.argmax(self.imageAvgArr)]  #x axis offset
         cG=np.average(self.imageAvgArr[int(self.imageAvgArr.shape[0]/20.0):]) #Set the y axisoffsest guess based on the average of the last 10% of data
         dF0G=30 #good guess
 
@@ -89,8 +89,8 @@ class Analyzer:
 
 
 
-        PF, pcov = spo.curve_fit(self.spectralProfile, self.MHzScaleArr, self.imageAvgArr, p0=guess,sigma=error)
-        self.F0=self.find_Voigt_Peak(self.MHzScaleArr,PF)
+        PF, pcov = spo.curve_fit(self.spectralProfile, self.imageFreqMHzArr, self.imageAvgArr, p0=guess,sigma=error)
+        self.F0=self.find_Voigt_Peak(self.imageFreqMHzArr,PF)
         dF0=PF[3] #FWHM of spectral profile
 
         def temp(freq):
@@ -166,7 +166,7 @@ class Analyzer:
         minHeight=(np.max(smooth)-np.min(smooth))/2.0 +np.min(smooth)
         peak=spsi.find_peaks(smooth,height=minHeight)[0][0]
 
-        x=np.flip(self.MHzScaleArr[peak-offset:])
+        x=np.flip(self.imageFreqMHzArr[peak-offset:])
         y=np.flip(self.imageAvgArr[peak-offset:])
         #newPeak=184
         error=np.ones(x.shape[0])
@@ -192,12 +192,12 @@ class Analyzer:
             print("left")
 
         if returnFit==True:
-            voigtFit=np.asarray(self.spectralProfile(self.MHzScaleArr, a, b, c, dF0))
+            voigtFit=np.asarray(self.spectralProfile(self.imageFreqMHzArr, a, b, c, dF0))
             return [a, b, c, dF0], stdDev, voigtFit
         return PF, stdDev
 
-    def find_Voigt_Peak(self,MHzScaleArr,PF):
-        x=np.linspace(self.MHzScaleArr[0],self.MHzScaleArr[-1],num=1000000)
+    def find_Voigt_Peak(self,imageFreqMHzArr,PF):
+        x=np.linspace(self.imageFreqMHzArr[0],self.imageFreqMHzArr[-1],num=1000000)
         y=self.spectralProfile(x,*PF)
         F0=x[spsi.find_peaks(y)[0]]
         return F0[0]

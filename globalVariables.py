@@ -107,7 +107,7 @@ timePerVolt=1 #seconds that it should take to scan a volt. This is so the laser 
 fullScanRange=maxScanVal-minScanVal #the total scan range
 stepsPerVoltGalvo=25 #number of steps per volt when taking the laser to or from a value. This is only used in DAQPin
     #class to prevent the galvo from sweeping too fast
-samplesPerVoltDAQ=25 #Number of DAQ readings per scanned volt. This is independent of image aquisition, but at every
+samplesPerVoltDAQ=10 #Number of DAQ readings per scanned volt. This is independent of image aquisition, but at every
     #image aquisition an additional point is collected as well.
 #----------
 

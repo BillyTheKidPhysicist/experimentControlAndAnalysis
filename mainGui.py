@@ -1,6 +1,7 @@
 from datetime import datetime
 import os.path
 import time
+from DAQClass import DAQPin
 import globalVariables as gv
 import matplotlib.pyplot as plt
 from astropy.io import fits
@@ -330,6 +331,15 @@ class ExperimentGUI:
     def update_Flow_Rate(self):
         #this function calls itself every 500 ms
         self.window.after(500, self.update_Flow_Rate)
+        self.flowRateDisplayVar.set(str(self.get_Flow()))
+
+    def get_Flow(self):
+        flowIn=DAQPin(gv.flowInPin)
+        b=4.29
+        m=1.4236
+        volt=flowIn.read()
+        flowIn.close()
+        return b+2000.0*(volt/5.0)*m
     def close_GUI(self):
         self.save_Settings()
         #flowOut = DAQPin(gv.flowOutPin)  # want to make sure that flowrate is zero when program closes
@@ -363,7 +373,7 @@ class ExperimentGUI:
                 gv.error_Sound()
                 sys.exit()
             try:
-                int(item)
+                float(item)
             except:
                 print('----------ERROR-------------')
                 print('YOU HAVE ENTERED SOMETHING OTHER THAN A NUMBER FOR ONE OF THE CAMERA/IMAGE/SCAN PARAMETER BOXS')
@@ -447,6 +457,10 @@ class ExperimentGUI:
         self.catch_Errors_Analysis() #check if the user has any messed up input
         fileName=self.anlFileNameBox.get()
         folderPath=self.anlFolderPathBox.get()
+        infoFile=open(folderPath+'\\'+fileName+'Info.txt')
+        startVolt=float(infoFile.readline().split(',')[1])
+        stopVolt=float(infoFile.readline().split(',')[1])
+        infoFile.close()
         x1=int(self.x1BoxAnl.get())
         x2=int(self.x2BoxAnl.get())
         y1=int(self.y1BoxAnl.get())
@@ -462,48 +476,84 @@ class ExperimentGUI:
         yMax=images.shape[2]
         images=images[:,yMax-y2:yMax-y1,x1:x2] #images is a 3 dimensional array where the first dimension is the images
             #the second is the rows (the y) and the third is the column (the x). Zero is the top left, not the bottom
-            # right. It makes this a little tricky
+            # right. It makes cropping a little tricky
         images=np.sum(np.sum(images, axis=2),axis=1) #sum along one axis and then the other. The result is an array where
             #each entry is the sum of all the pixels in that image.
-
+        images=np.ones(200) #TODO: REMOVE!
         DAQData=np.loadtxt(folderPath+'\\'+fileName+'DAQData.csv',self.DAQDataArr,delimiter=',')
         #MHzScaleArr=MakeMHzScale.make_MHz_Scale(DAQData)
-        MHzScaleArr=np.linspace(0,1200,num=DAQData.shape[0])
-        analyzer=Analyzer(images,MHzScaleArr)
-        images=analyzer.spectralProfile(MHzScaleArr,1,600,.2,45)+.5*(np.random.random(MHzScaleArr.shape)-.5)
+        MHzScaleArr=np.linspace(0,5000,num=DAQData.shape[0])
+        galvoVoltArr=DAQData[:,0]
 
-        analyzer=Analyzer(images, MHzScaleArr)
+
+        P=np.polyfit(galvoVoltArr,MHzScaleArr, 1)
+        temp=np.linspace(startVolt,stopVolt,num=images.shape[0])
+        imageFreqMhzArr=P[1]+P[0]*temp
+
+        analyzer=Analyzer(images,imageFreqMhzArr)
+        images=analyzer.spectralProfile(imageFreqMhzArr,1,2500,.2,90)+.5*(np.random.random(imageFreqMhzArr.shape)-.5)
+#
+        analyzer=Analyzer(images, imageFreqMhzArr)
         analyzer.fit_Image_Data()
-        print(analyzer.T)
-
-
+        #print(analyzer.T)
+#
+#
         self.save_Spectral_Fit_Plot(analyzer,DAQData)
-        #plt.plot(MHzScaleArr,images)
-        #plt.plot(MHzScaleArr,analyzer.fitFunc(MHzScaleArr))
-        #plt.show()
+        plt.plot(imageFreqMhzArr,images)
+        plt.plot(imageFreqMhzArr,analyzer.fitFunc(imageFreqMhzArr))
+        plt.show()
     def save_Spectral_Fit_Plot(self,analyzer,DAQData):
         fileName=self.anlFileNameBox.get()
         folderPath=self.anlFolderPathBox.get()
-        infoFile=open(folderPath+'\\'+fileName+'Info.txt')
-        startVolt=float(infoFile.readline().split(',')[1])
-        stopVolt=float(infoFile.readline().split(',')[1])
-        infoFile.close()
         galvoVoltArr=DAQData[:,0]
         liRefVoltArr=DAQData[:,1]
-        #now I need to use the image start and stop volt to make frequency values at each image. The galvo is very linear
-        #so I do a simple polynomial fit
-        P=np.polyfit(galvoVoltArr,analyzer.MHzScaleArr,2)
-        voltArr=np.linspace(startVolt,stopVolt,num=analyzer.imageAvgArr.shape[0])
-
-        #now make the array with the polynomials. They are returned in the opposite order I would expect
-        x=P[2]
-        x+=P[1]*voltArr
-        x+=P[0]*voltArr**2
-        print(x)
-
-
-
         plt.close('all')
+
+
+        #now find the FWHM
+
+        #xTemp=np.linspace(analyzer.imageFreqMHzArr[0],analyzer.imageFreqMHzArr[-1],num=10000)
+        #yTemp=analyzer.fitFunc(xTemp)
+        #yTemp=yTemp-yTemp.min()
+        #yHalf=(yTemp.max()-yTemp.min())/2
+        #xLeft=xTemp[np.argmax(yTemp>yHalf)]
+        #xRight=xTemp[np.argmax(yTemp[np.argmax(yTemp):]<yHalf)+np.argmax(yTemp)]
+        #FWHM=xRight-xLeft
+        #print(xLeft,xRight)
+#
+        #plt.plot(xTemp,yTemp)
+        #plt.show()
+
+
+
+
+
+        x=analyzer.imageFreqMHzArr
+        y1=analyzer.imageAvgArr
+        y2=analyzer.fitFunc(x) #the previously generated fit
+
+        plt.figure( figsize=(10, 7))
+
+        titleString="Temperature~ "+str(np.round(analyzer.T*1000))+' mk (dubious) '#+' FWHM: '+str(fwhm)+' mhz|'
+        #titleString+='\n'+'Atom velocity: '+str(np.round(velocity, 1))+'m/s |'
+        #titleString+=' signal size: '+str(sigSize)+' au | center frequency: '+str(np.round(F0, 1))+' mhz |'
+        #titleString+='\n'+'region (x,y):'+str(region)+' | '+"Mhz per galvo volt= "+str(int(scale))+' |'+'\n'
+        #titleString+=' created:'+str(datetime.date.today())
+
+        plt.title(titleString)
+
+
+
+        plt.ylabel("pixel value")
+        plt.xlabel("MHz relative to F=2 transition")
+
+        plt.plot(x,y1,label='Data')
+        plt.plot(x,y2,label='Fit')
+        plt.legend()
+        plt.grid()
+        plt.savefig(folderPath+'\\'+fileName+self.cameraVarAnl.get())
+
+        #plt.show()
 
 
 
@@ -648,9 +698,32 @@ class ExperimentGUI:
         print('images saved to fits files')
 
     def make_Flow(self):
-        None
+        b=4.29
+        m=1.4236
+        flowOut=DAQPin(gv.flowOutPin)
+        flowDesired=float(self.flowRateBox.get())
+        if flowDesired>0.0:
+            flowOut.write((5.0/2000)*(flowDesired-b)/m)
+        else:
+            flowOut.write(0.0)
+        flowOut.close(zero=False)
     def Li_Reference_Check(self):
-        None
+        plt.close('all')
+        voltArr=np.linspace(gv.minScanVal,gv.maxScanVal,num=250)
+        temp=[]
+        galvoOut=DAQPin(gv.galvoOutPin)
+        liRefIn=DAQPin(gv.lithiumRefInPin)
+        for volt in voltArr:
+            galvoOut.write(volt)
+            temp.append(liRefIn.read(numSamples=1000))
+        galvoOut.close()
+        liRefIn.close()
+        plt.plot(voltArr,temp)
+        plt.grid()
+        plt.title('Lithium reference chamber signal vs galvo voltage')
+        plt.xlabel('Galvo voltage, v')
+        plt.ylabel('PMT voltage, v')
+        plt.show()
     def load_Settings(self):
         try:
             file=open("GUI_Settings.txt", "r")

@@ -1,3 +1,7 @@
 .idea/
 __pycache__/
 test.py
+image.txt
+quickCapture.py
+transversePlot.py
+notebook.ipynb

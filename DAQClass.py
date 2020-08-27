@@ -87,6 +87,6 @@ class DAQPin:
             if zero==True:
                 self.write(0.0)
         self.daqChannel.close()
-        print('DAQ board pin '+self.pinName + ' closed')
+        #print('DAQ board pin '+self.pinName + ' closed')
 
 

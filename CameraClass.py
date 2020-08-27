@@ -7,8 +7,10 @@ import progressbar
 import numpy as np
 from ximea import xiapi as xi
 import threading
+
+#TODO: USE ACTUAL IMAGE REGION FUNCTION OF FLI CAMERA TO SPEED UP
 class Camera:
-    def __init__(self,camName,expTime,imageParams=None,bin=1,temp=-20):
+    def __init__(self,camName,expTime,imageParams=None,bin=1,temp=-25):
         #camName: Name of camera, or rather position. Far field vs near field
         #expTime: exposure time of camera in ms
         #imageParam: A list of image paramters, [x1,x2,y1,y2], where x1 is start of image region along x, x2 is end of
@@ -16,6 +18,8 @@ class Camera:
                 #if none then use the entire sensor
         self.camName=camName
         self.expTime=expTime #convert from milliseconds to microseconds
+        if imageParams==None:
+            imageParams=[0,9999999,0,999999] #set to full range
         self.imageParams=imageParams
         self.bin=bin
         self.temp=temp
@@ -191,6 +195,7 @@ class Camera:
         self._catch_And_Fix_Errors()
         fli.setVBin(self.cameraIndex,self.bin)
         fli.setHBin(self.cameraIndex,self.bin)
+        fli.controlBackgroundFlush(self.cameraIndex,'start')
     def aquire_Image(self):
         if self.camName=='FAR':
             #the image needs to be massaged to display how I want it to. For an image with dimension (M,N) M defined rows
@@ -217,12 +222,10 @@ class Camera:
             img=self._bin_Image(img,self.bin)
         return img
     def _aquire_Image_FLI(self):
-
         fli.exposeFrame(self.cameraIndex)
         while fli.getExposureStatus(self.cameraIndex)>0: #when there is 0 milliseconds remaining the exposure is done
             time.sleep(.01) #I don't think I want to query the camera for exposure status millions of time a second
         img=fli.grabFrame(self.cameraIndex)
-
         return img
 
     def _bin_Image(self,image, binSize):
