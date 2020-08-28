@@ -8,10 +8,12 @@ import numpy as np
 from ximea import xiapi as xi
 import threading
 
-#TODO: USE ACTUAL IMAGE REGION FUNCTION OF FLI CAMERA TO SPEED UP
+
+#TODO: FIX XIMEA BINNING
+#TODO: DONT PRESENT A WARNING FOR LEAVING imageParams=None
 
 class Camera:
-    def __init__(self,camName,expTime,imageParams=None,bin=1,temp=-25):
+    def __init__(self,camName,expTime,imageParams=None,bin=None,temp=-25,binx=None,biny=None):
         #camName: Name of camera, or rather position. Far field vs near field
         #expTime: exposure time of camera in milliseconds
         #imageParam: A list of image paramters, [x1,x2,y1,y2], where x1 is start of image region along x, x2 is end of
@@ -19,13 +21,20 @@ class Camera:
                 #if none then use the entire sensor
         #bin: Bin size in both directions, ie square binning. For Ximea this is done to the numpy array output. For the
                 #FLI camera it is done with hardware on the camera. For a CMOS camera hardware binning doesn't improve
-                #performance like it does on a CCD
+                #performance like it does on a CCD. If the value is None then it set to 1 in the catch errors section
+        #binx: binning in the x direction
+        #biny: binning in the y direction
+
+        #binning requests cannot conflit with each other.
+
         self.camName=camName
         self.expTime=expTime
         if imageParams==None:
             imageParams=[0,9999999,0,999999] #set to full range
         self.imageParams=imageParams
         self.bin=bin
+        self.binx=binx
+        self.biny=biny
         self.temp=temp
         self.cameraIndex=None #used for FLI camera. For some annoying reason FLI libraries use indices to track the camera
                 #instead of a camera object
@@ -42,6 +51,7 @@ class Camera:
     def _initialize_Camera_Ximea(self):
         self.cameraObject=xi.Camera()
         self.cameraObject.open_device()
+        self._catch_And_Fix_Errors()
         self.cameraObject.set_imgdataformat('XI_MONO16')  #return data with the greatest depth possible. Otherwise data
         #is forced to fit into an 8 bit array
         self.cameraObject.set_exposure(int(self.expTime*1E3)) #exposure time is in microseconds for ximea camera
@@ -57,7 +67,6 @@ class Camera:
         self.cameraObject.set_param('device_unit_register_selector', 0x0222)
         self.cameraObject.set_param('device_unit_register_value', 0xF0)
 
-        self._catch_And_Fix_Errors()
         x1,x2,y1,y2=self.imageParams
         xWidth=x2-x1
         yWidth=y2-y1
@@ -69,9 +78,34 @@ class Camera:
         self.cameraObject.start_acquisition()
 
     def _catch_And_Fix_Errors(self):
+        if self.camName!='FAR' and self.camName!='NEAR':
+            print('---------------ERROR----------------')
+            print('NO VALID CAMERA NAME PROVIDED. VALID NAMES ARE \'NEAR\' AND \'FAR\'')
+            gv.error_Sound()
+            sys.exit()
+
+
+        binError=False
+        if self.bin is None and self.binx is None and self.biny is None:
+            binError=True
+        if self.bin is not None and (self.binx is not None or self.biny is not None):
+            binError=True
+        if self.bin is None and (self.binx is None or self.biny is None):
+            binError=True
+        if binError==True:
+            print('------------ERROR-------------')
+            print('YOU HAVE SET A DISALLOWED BIN CONFIGURATION')
+            print('ALLOWED CONFIGURATIONS: bin=value, binx=None,biny=None OR bin=None, binx=value1,biny=value2')
+            print('BY DEFAULT ALL ARE NONE AND THEN bin IS THEN SET TO 1')
+            sys.exit()
+        if self.bin is None and self.binx is None and self.biny is None:
+            self.bin=1
+            self.binx=1
+            self.biny=1
+
         x1, x2, y1, y2=self.imageParams
         if self.camName=='FAR':
-            if self.bin<0 or self.bin>16:
+            if self.binx<0 or self.binx>16 or self.biny<0 or self.biny>16:
                 print('----------ERROR-------------')
                 print('VALID RANGE OF BINNING FOR FLI CAMERA IS 1 TO 16')
                 gv.error_Sound()
@@ -81,15 +115,14 @@ class Camera:
                 print('FLI CAMERA EXPOSURE MUST BE AT LEAST 50 ms')
                 gv.error_Sound()
                 sys.exit()
-        #now adress issues common to both cameras
+
+
         if self.camName=='NEAR':
             xMax=self.cameraObject.get_width_maximum()
             yMax=self.cameraObject.get_height_maximum()
-        elif self.camName=='FAR':
+        if self.camName=='FAR':
             xMax=1024
             yMax=1024
-        else:
-            raise Exception('NO VALID CAMERA NAME PROVIDED')
 
         if x1<0 or x2<0 or y1<0 or y2<0:
             print('NO IMAGE DIMENSION VALUES CAN BE NEGATIVE')
@@ -116,10 +149,10 @@ class Camera:
 
         #make image size and binning line up correctly
         if self.camName=='NEAR':
-            x1New=self.bin*8*(x1//(self.bin*8))
-            x2New=self.bin*8*(x2//(self.bin*8))
-            y1New=self.bin*8*(y1//(self.bin*8))
-            y2New=self.bin*8*(y2//(self.bin*8))
+            x1New=self.binx*8*(x1//(self.binx*8))
+            x2New=self.binx*8*(x2//(self.binx*8))
+            y1New=self.biny*8*(y1//(self.biny*8))
+            y2New=self.biny*8*(y2//(self.biny*8))
             if x1New!=x1 or x2New!=x2 or y1New!=y1 or y2New!=y2:
                 print('----------WARNING-----------')
                 print('Image region for Ximea needs to be both even multiple of 8 as well as an even')
@@ -133,10 +166,10 @@ class Camera:
                 print('---------------END OF WARNING---------------')
                 gv.warning_Sound()
         elif self.camName=='FAR':
-            x1New=self.bin*(x1//self.bin)
-            x2New=self.bin*(x2//self.bin)
-            y1New=self.bin*(y1//self.bin)
-            y2New=self.bin*(y2//self.bin)
+            x1New=self.binx*(x1//self.binx)
+            x2New=self.binx*(x2//self.binx)
+            y1New=self.biny*(y1//self.biny)
+            y2New=self.biny*(y2//self.biny)
             if x1New!=x1 or x2New!=x2 or y1New!=y1 or y2New!=y2:
                 print('----------WARNING-----------')
                 print('Image region needs to be an even multiple of bin size. Adjusting now.')
@@ -163,10 +196,6 @@ class Camera:
         # I don't set the image region because it's a little complicatd with the binning. Instead I just take a full image
         #and format before returning
 
-
-
-
-        #cameraModel=fli.FLIList('usb', 'camera')#[0][1]
         try:
             self.cameraIndex=fli.FLIOpen('flipro0', 'usb', 'camera')
         except:
@@ -176,6 +205,7 @@ class Camera:
             #depends on me knowing the name of the camera which I think is always 'flipro0' for the first one. This error
             #will be thrown if that isn't true as well, such as using a different FLI camera, or some other change
             #in ports or something. Wish it didn't have to be like this but this library is a home made wrapper
+        self._catch_And_Fix_Errors()
         fli.setTemperature(self.cameraIndex, self.temp)
         currentTemp=fli.readTemperature(self.cameraIndex, 'internal')
         print('Opened FLI Camera . Current temperature is '+str(currentTemp)+' Celcius.')
@@ -193,9 +223,8 @@ class Camera:
                     print('Target temperature reached')
                     loop=False
         fli.setExposureTime(self.cameraIndex, self.expTime)
-        self._catch_And_Fix_Errors()
-        fli.setVBin(self.cameraIndex,self.bin)
-        fli.setHBin(self.cameraIndex,self.bin)
+        fli.setVBin(self.cameraIndex,self.binx)
+        fli.setHBin(self.cameraIndex,self.biny)
         fli.controlBackgroundFlush(self.cameraIndex,'start')
 
         #This part is a little tricky. The image is rotated 90 degrees from the camera mounting bracket so I transform
@@ -211,6 +240,8 @@ class Camera:
         x2Rot=y2
         y1Rot=1024-x2
         y2Rot=1024-x1
+        binx=self.biny #binning dimension flips
+        biny=self.binx
 
         x1=x1Rot
         x2=x2Rot
@@ -222,8 +253,8 @@ class Camera:
         y2=y2Temp
 
         #now adjust to conform to the input dimensions for the FLI camera
-        y2=y1+(y2-y1)//self.bin
-        x2=x1+(x2-x1)//self.bin
+        x2=x1+(x2-x1)//binx
+        y2=y1+(y2-y1)//biny
 
         #some of this could be streamlined, like removing the redundant 1024 that gets subtracted anyways, but I want
         #to preserve the flow of the logic
@@ -243,8 +274,7 @@ class Camera:
         imgObject=xi.Image()
         self.cameraObject.get_image(imgObject)
         img=imgObject.get_image_data_numpy()
-        if self.bin!=1:
-            img=self._bin_Image(img,self.bin)
+        img=self._bin_Image(img)
         return img
     def _aquire_Image_FLI(self):
         fli.exposeFrame(self.cameraIndex)
@@ -253,12 +283,11 @@ class Camera:
         img=fli.grabFrame(self.cameraIndex)
         return img
 
-    def _bin_Image(self,image, binSize):
+    def _bin_Image(self,image):
         #ximea images have to be manually binned unfortunately...
         m, n=image.shape
-        return image.reshape(m//binSize, binSize, n//binSize, binSize).sum(3).sum(1)
+        return image.reshape(m//self.biny, self.biny, n//self.binx, self.binx).sum(3).sum(1)
     def close(self):
         if self.camName=='NEAR':
             self.cameraObject.stop_acquisition()
             self.cameraObject.close_device()
-
