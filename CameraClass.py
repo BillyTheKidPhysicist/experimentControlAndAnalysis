@@ -9,6 +9,7 @@ from ximea import xiapi as xi
 import threading
 
 #TODO: USE ACTUAL IMAGE REGION FUNCTION OF FLI CAMERA TO SPEED UP
+
 class Camera:
     def __init__(self,camName,expTime,imageParams=None,bin=1,temp=-25):
         #camName: Name of camera, or rather position. Far field vs near field
@@ -196,17 +197,48 @@ class Camera:
         fli.setVBin(self.cameraIndex,self.bin)
         fli.setHBin(self.cameraIndex,self.bin)
         fli.controlBackgroundFlush(self.cameraIndex,'start')
+
+        #This part is a little tricky. The image is rotated 90 degrees from the camera mounting bracket so I transform
+        #the coordinates into the rotated system.
+        x1,x2,y1,y2=self.imageParams #coordinates in upright frame
+
+        #Rotate the coordinates. Because the frame is specified from the bottom left like in a fits file instead of
+        #the top left like the FLI camera wants I need to adjust for that in regards to the y dimension. Numpy has the
+        #same convention as the FLI camera. I have to do this in two steps to prevent variables from being overwritten
+        #because obviously I can't do something like x1=y1, x2=y2, y1=x2,y2=x1. The best way to see this logic is to
+        #draw a box with coordinates and see how it changes.
+        x1Rot=y1
+        x2Rot=y2
+        y1Rot=1024-x2
+        y2Rot=1024-x1
+
+        x1=x1Rot
+        x2=x2Rot
+        y1=y1Rot
+        y2=y2Rot
+        y1Temp=1024-y2
+        y2Temp=1024-y1
+        y1=y1Temp
+        y2=y2Temp
+
+        #now adjust to conform to the input dimensions for the FLI camera
+        y2=y1+(y2-y1)//self.bin
+        x2=x1+(x2-x1)//self.bin
+
+        #some of this could be streamlined, like removing the redundant 1024 that gets subtracted anyways, but I want
+        #to preserve the flow of the logic
+        fli.setImageArea(self.cameraIndex, x1, y1, x2, y2) #set the image area
     def aquire_Image(self):
         if self.camName=='FAR':
             #the image needs to be massaged to display how I want it to. For an image with dimension (M,N) M defined rows
             #and N defines columns. if I want to select a sub image from this I need to not confuse M with x and N with y
             #because it is the opposite actually
             img=self._aquire_Image_FLI()
-            img= img[:int(img.shape[0]/self.bin),:int(img.shape[1]/self.bin)] #if the image is binned then the FLI camera
+            #img= img[:int(img.shape[0]/self.bin),:int(img.shape[1]/self.bin)] #if the image is binned then the FLI camera
                     #returns the entire 1024x1024 image, but with a section of it containing the actual image.
             img=np.rot90(img) #image is sideways relative to mounting screw, needs to be rotated
-            x1, x2, y1, y2=self.imageParams
-            img=img[(1024-y2)//self.bin:(1024-y1)//self.bin,x1//self.bin:x2//self.bin]
+            #x1, x2, y1, y2=self.imageParams
+            #img=img[(1024-y2)//self.bin:(1024-y1)//self.bin,x1//self.bin:x2//self.bin]
             return img
         elif self.camName=='NEAR':
             img=self._aquire_Image_Ximea()
@@ -236,79 +268,4 @@ class Camera:
         if self.camName=='NEAR':
             #self.cameraObject.stop_acquisition()
             self.cameraObject.close_device()
-#currentCam=xi.Camera()
-#currentCam.open_device()
-#print(currentCam.get_device_name())
-#currentCam.close_device()
-#
-#import time
-#import matplotlib.pyplot as plt
-#print(fli.FLIList('usb','camera'))
-#cam = fli.FLIOpen('flipro0', 'usb', 'camera')
-#print(fli.readTemperature(cam,'internal'))
-#fli.setTemperature(cam,0)
-##print(fli.readTemperature(cam,'internal'))
-#
-#expTime=.1
-#print(expTime)
-#fli.setExposureTime(cam,expTime*1E3)
-#fli.exposeFrame(cam)
-#time.sleep(1)
-#
-#img=fli.grabFrame(cam)
-#print(img.mean())
-#print(img.sum())
-##fli.endExposure(cam)
-#print(type(img))
-#plt.imshow(img)
-#plt.show()
-#import scipy.interpolate as spi
-#import scipy.signal as sps
-import astropy.io as astroio
-#camera=Camera('FAR',250,imageParams=[0,500,0,500],bin=1)
-#img=camera.aquire_Image()
-#plt.imshow(img)
-#plt.show()
 
-from astropy.io import fits
-#camera.close()
-
-#hdu=fits.PrimaryHDU(img)
-#hdul=fits.HDUList([hdu])
-#hdul.writeto('test.fits')
-#
-#
-#
-#yFWHMList=[]
-#for i in range(10):
-#    img=camera.aquire_Image()
-#    y=img[490,430:465]
-#    y=y/y.max()
-#
-#
-#    x=np.arange(0,y.shape[0])
-#    ySmooth=sps.savgol_filter(y,7,2)
-#    yFit=spi.Rbf(x,ySmooth,smooth=.1)
-#    xArr=np.linspace(0,np.max(x),num=10000)
-#
-#
-#    yFit=yFit(xArr)
-#    yFitHM=(yFit.max()+yFit.min())/2
-#    x0=np.argmin(yFit)
-#    yFWHMList.append(x0+np.argmax(yFit[x0:]>yFitHM)-np.argmax(yFit[:x0]<yFitHM))
-#camera.close()
-#print(yFWHMList)
-#temp=np.asarray(yFWHMList)
-#print('FWHM',np.round(np.mean(temp),1),' +/- ', np.round(np.std(temp),1))
-#
-#
-#plt.plot(y)
-##plt.plot(ySmooth)
-#plt.plot(xArr,yFit)
-#plt.grid()
-#plt.show()
-#
-#
-#
-##plt.imshow(img)
-##plt.show()
