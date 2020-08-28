@@ -13,12 +13,15 @@ import threading
 class Camera:
     def __init__(self,camName,expTime,imageParams=None,bin=1,temp=-25):
         #camName: Name of camera, or rather position. Far field vs near field
-        #expTime: exposure time of camera in ms
+        #expTime: exposure time of camera in milliseconds
         #imageParam: A list of image paramters, [x1,x2,y1,y2], where x1 is start of image region along x, x2 is end of
                 #image region along x. y1 is start of image region along y, y2 is end of image region along y.
                 #if none then use the entire sensor
+        #bin: Bin size in both directions, ie square binning. For Ximea this is done to the numpy array output. For the
+                #FLI camera it is done with hardware on the camera. For a CMOS camera hardware binning doesn't improve
+                #performance like it does on a CCD
         self.camName=camName
-        self.expTime=expTime #convert from milliseconds to microseconds
+        self.expTime=expTime
         if imageParams==None:
             imageParams=[0,9999999,0,999999] #set to full range
         self.imageParams=imageParams
@@ -43,7 +46,7 @@ class Camera:
         #is forced to fit into an 8 bit array
         self.cameraObject.set_exposure(int(self.expTime*1E3)) #exposure time is in microseconds for ximea camera
 
-        #turn off every feature that I can. Who knows whats happening if these are on? I'm not even confident in this
+        #Turn off every feature that I can. Who knows whats happening if these are on? I'm not even confident in this
         #camera with these off
         self.cameraObject.set_gain(0)
         self.cameraObject.disable_bpc()
@@ -190,9 +193,6 @@ class Camera:
                     print('Target temperature reached')
                     loop=False
         fli.setExposureTime(self.cameraIndex, self.expTime)
-
-
-
         self._catch_And_Fix_Errors()
         fli.setVBin(self.cameraIndex,self.bin)
         fli.setHBin(self.cameraIndex,self.bin)
@@ -230,15 +230,8 @@ class Camera:
         fli.setImageArea(self.cameraIndex, x1, y1, x2, y2) #set the image area
     def aquire_Image(self):
         if self.camName=='FAR':
-            #the image needs to be massaged to display how I want it to. For an image with dimension (M,N) M defined rows
-            #and N defines columns. if I want to select a sub image from this I need to not confuse M with x and N with y
-            #because it is the opposite actually
             img=self._aquire_Image_FLI()
-            #img= img[:int(img.shape[0]/self.bin),:int(img.shape[1]/self.bin)] #if the image is binned then the FLI camera
-                    #returns the entire 1024x1024 image, but with a section of it containing the actual image.
             img=np.rot90(img) #image is sideways relative to mounting screw, needs to be rotated
-            #x1, x2, y1, y2=self.imageParams
-            #img=img[(1024-y2)//self.bin:(1024-y1)//self.bin,x1//self.bin:x2//self.bin]
             return img
         elif self.camName=='NEAR':
             img=self._aquire_Image_Ximea()
@@ -266,6 +259,6 @@ class Camera:
         return image.reshape(m//binSize, binSize, n//binSize, binSize).sum(3).sum(1)
     def close(self):
         if self.camName=='NEAR':
-            #self.cameraObject.stop_acquisition()
+            self.cameraObject.stop_acquisition()
             self.cameraObject.close_device()
 
