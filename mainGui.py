@@ -479,10 +479,9 @@ class ExperimentGUI:
             # right. It makes cropping a little tricky
         images=np.sum(np.sum(images, axis=2),axis=1) #sum along one axis and then the other. The result is an array where
             #each entry is the sum of all the pixels in that image.
-        images=np.ones(200) #TODO: REMOVE!
         DAQData=np.loadtxt(folderPath+'\\'+fileName+'DAQData.csv',self.DAQDataArr,delimiter=',')
-        #MHzScaleArr=MakeMHzScale.make_MHz_Scale(DAQData)
-        MHzScaleArr=np.linspace(0,5000,num=DAQData.shape[0])
+        MHzScaleArr=MakeMHzScale.make_MHz_Scale(DAQData)
+        #MHzScaleArr=np.linspace(0,5000,num=DAQData.shape[0])
         galvoVoltArr=DAQData[:,0]
 
 
@@ -490,18 +489,16 @@ class ExperimentGUI:
         temp=np.linspace(startVolt,stopVolt,num=images.shape[0])
         imageFreqMhzArr=P[1]+P[0]*temp
 
-        analyzer=Analyzer(images,imageFreqMhzArr)
-        images=analyzer.spectralProfile(imageFreqMhzArr,1,2500,.2,90)+.5*(np.random.random(imageFreqMhzArr.shape)-.5)
-#
+
         analyzer=Analyzer(images, imageFreqMhzArr)
         analyzer.fit_Image_Data()
         #print(analyzer.T)
 #
 #
-        self.save_Spectral_Fit_Plot(analyzer,DAQData)
-        plt.plot(imageFreqMhzArr,images)
-        plt.plot(imageFreqMhzArr,analyzer.fitFunc(imageFreqMhzArr))
-        plt.show()
+        #self.save_Spectral_Fit_Plot(analyzer,DAQData)
+        #plt.plot(imageFreqMhzArr,images)
+        #plt.plot(imageFreqMhzArr,analyzer.fitFunc(imageFreqMhzArr))
+        #plt.show()
     def save_Spectral_Fit_Plot(self,analyzer,DAQData):
         fileName=self.anlFileNameBox.get()
         folderPath=self.anlFolderPathBox.get()
@@ -528,8 +525,9 @@ class ExperimentGUI:
 
 
 
-        x=analyzer.imageFreqMHzArr
+        x1=analyzer.imageFreqMHzArr
         y1=analyzer.imageAvgArr
+        x1=np.linspace(x1[0],x1 [0],num)
         y2=analyzer.fitFunc(x) #the previously generated fit
 
         plt.figure( figsize=(10, 7))
@@ -551,9 +549,9 @@ class ExperimentGUI:
         plt.plot(x,y2,label='Fit')
         plt.legend()
         plt.grid()
-        plt.savefig(folderPath+'\\'+fileName+self.cameraVarAnl.get())
+        #plt.savefig(folderPath+'\\'+fileName+self.cameraVarAnl.get())
 
-        #plt.show()
+        plt.show()
 
 
 

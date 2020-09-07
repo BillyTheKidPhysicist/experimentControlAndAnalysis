@@ -7,6 +7,7 @@ import time
 import numpy as np
 from DAQClass import DAQPin
 from CameraClass import Camera
+#TODO: MAKE THIS GO FASTER. WHY IS IT SO SLOW?
 class Sweeper:
     def __init__(self,GUI):
         self.GUI=GUI
@@ -113,6 +114,9 @@ class Sweeper:
             self.galvoOut.write(volt)
             tempList.append([volt,self.lithiumRefIn.read(numSamples=1000)])
             if takeImage==True:
+                #for i in range(10):
+                #    self._take_Exposures()
+                #print((time.time()-t)/10)
                 self.imageArrList.append(self._take_Exposures()) #the appended object is a list like [imageNear,imageFar]. If
                 #there is no camera active for a given image the entry is None
                 takeImage=False
@@ -137,9 +141,9 @@ class Sweeper:
     def _initialize_Cameras(self):
         if self.GUI.cameraVarData.get()=='BOTH':
             self.cameraFar=Camera('FAR', self.expTimeFar, self.imageParamFar,bin=self.binSizeFar)
-            self.cameraNear=Camera('NEAR', self.expTimeFar, self.imageParamNear,bin=self.binSizeNear)
+            self.cameraNear=Camera('NEAR', self.expTimeNear, self.imageParamNear,bin=self.binSizeNear)
         elif self.GUI.cameraVarData.get()=='NEAR':
-            self.cameraNear=Camera('NEAR', self.expTimeFar, self.imageParamNear,bin=self.binSizeNear)
+            self.cameraNear=Camera('NEAR', self.expTimeNear, self.imageParamNear,bin=self.binSizeNear)
         elif self.GUI.cameraVarData.get()=='FAR':
             self.cameraFar=Camera('FAR',self.expTimeFar,self.imageParamFar,bin=self.binSizeFar)
         else:

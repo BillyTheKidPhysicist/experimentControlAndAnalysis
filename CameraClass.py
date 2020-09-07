@@ -9,7 +9,7 @@ from ximea import xiapi as xi
 import threading
 
 
-#TODO: FIX XIMEA BINNING
+
 #TODO: DONT PRESENT A WARNING FOR LEAVING imageParams=None
 
 class Camera:
@@ -24,8 +24,6 @@ class Camera:
                 #performance like it does on a CCD. If the value is None then it set to 1 in the catch errors section
         #binx: binning in the x direction
         #biny: binning in the y direction
-
-        #binning requests cannot conflit with each other.
 
         self.camName=camName
         self.expTime=expTime
@@ -51,11 +49,16 @@ class Camera:
     def _initialize_Camera_Ximea(self):
         self.cameraObject=xi.Camera()
         self.cameraObject.open_device()
+        if self.imageParams is None:
+            #if no value is provided use the full feild of view
+            x2=self.cameraObject.get_width_maximum()
+            y2=self.cameraObject.get_height_maximum()
+            self.imageParams=[0,x2,0,y2]
+
         self._catch_And_Fix_Errors()
         self.cameraObject.set_imgdataformat('XI_MONO16')  #return data with the greatest depth possible. Otherwise data
         #is forced to fit into an 8 bit array
         self.cameraObject.set_exposure(int(self.expTime*1E3)) #exposure time is in microseconds for ximea camera
-
         #Turn off every feature that I can. Who knows whats happening if these are on? I'm not even confident in this
         #camera with these off
         self.cameraObject.set_gain(0)
@@ -85,6 +88,7 @@ class Camera:
             sys.exit()
 
 
+        #binning results cannot conflict
         binError=False
         if self.bin is None and self.binx is None and self.biny is None:
             binError=True
@@ -102,6 +106,9 @@ class Camera:
             self.bin=1
             self.binx=1
             self.biny=1
+        if self.bin is not None:
+            self.binx=self.bin
+            self.biny=self.bin
 
         x1, x2, y1, y2=self.imageParams
         if self.camName=='FAR':
@@ -205,6 +212,9 @@ class Camera:
             #depends on me knowing the name of the camera which I think is always 'flipro0' for the first one. This error
             #will be thrown if that isn't true as well, such as using a different FLI camera, or some other change
             #in ports or something. Wish it didn't have to be like this but this library is a home made wrapper
+        if self.imageParams is None:
+            #if no value is provided use the full feild of view
+            self.imageParams=[0,1024,0,1024]
         self._catch_And_Fix_Errors()
         fli.setTemperature(self.cameraIndex, self.temp)
         currentTemp=fli.readTemperature(self.cameraIndex, 'internal')

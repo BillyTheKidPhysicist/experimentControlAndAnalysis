@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 
 
 def make_MHz_Scale(DAQData):
-    temp=MHzScale(DAQData)
-    temp.make_MHZ_Scale()
+    MHZScaleMaker=MHzScale(DAQData)
+    scale=MHZScaleMaker.make_MHZ_Scale()
+    return scale
 
 class MHzScale:
     def __init__(self,DAQData):
