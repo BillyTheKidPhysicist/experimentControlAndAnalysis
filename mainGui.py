@@ -238,6 +238,14 @@ class ExperimentGUI:
         CAMERA_MENU_Anl=tk.OptionMenu(self.window, self.cameraVarAnl, *cameraChoiceAnl)
         CAMERA_MENU_Anl.grid(column=0, row=21, columnspan=1)
 
+        lbl17=tk.Label(self.window, text="I/I_sat")
+        lbl17.grid(column=1, row=21, sticky='E')
+
+        self.saturationConstantBox=tk.Entry(self.window)
+        self.saturationConstantBox.config(width=dimBoxWidth)
+        self.saturationConstantBox.grid(column=2, row=21, sticky='W')
+        self.settingsList.append(self.saturationConstantBox)
+
         #---------------cheat method-----------------
         #cheatVar=tk.IntVar()
         #cheatVar=tk.IntVar()file
@@ -455,6 +463,7 @@ class ExperimentGUI:
 
     def do_Data_Analysis(self):
         self.catch_Errors_Analysis() #check if the user has any messed up input
+        self.save_Settings()
         fileName=self.anlFileNameBox.get()
         folderPath=self.anlFolderPathBox.get()
         infoFile=open(folderPath+'\\'+fileName+'Info.txt')
@@ -470,36 +479,57 @@ class ExperimentGUI:
 
         fitsFile = fits.open(folderPath+'\\'+fileName+camName+'.fits') #load the fits file into memory as a numpy array. This can
             #take a little while
-        images = fitsFile[0].data #there is something called a header attached to a fit file. We only want the numpy array
+        imagesArr = fitsFile[0].data #there is something called a header attached to a fit file. We only want the numpy arra
         fitsFile.close()
-        images=np.rot90(np.rot90(images)) #images are rotate 180 degrees off
-        yMax=images.shape[2]
-        images=images[:,yMax-y2:yMax-y1,x1:x2] #images is a 3 dimensional array where the first dimension is the images
+        imagesArr=np.flip(imagesArr,axis=1) #images are flipped when transferring from fits to numpy
+
+
+        yMax=imagesArr.shape[1]
+        y1N=yMax-y2
+        if y1N<0:#to not loop back around if the user wants to use the whole image
+            y1N=0
+        y2N=yMax-y1
+        imagesArr=imagesArr[:,y1N:y2N,x1:x2] #images is a 3 dimensional array where the first dimension is the images
             #the second is the rows (the y) and the third is the column (the x). Zero is the top left, not the bottom
             # right. It makes cropping a little tricky
-        images=np.sum(np.sum(images, axis=2),axis=1) #sum along one axis and then the other. The result is an array where
+        imagesSumArr=np.sum(np.sum(imagesArr, axis=2),axis=1) #sum along one axis and then the other. The result is an array where
             #each entry is the sum of all the pixels in that image.
         DAQData=np.loadtxt(folderPath+'\\'+fileName+'DAQData.csv',self.DAQDataArr,delimiter=',')
         MHzScaleArr=MakeMHzScale.make_MHz_Scale(DAQData)
         #MHzScaleArr=np.linspace(0,5000,num=DAQData.shape[0])
         galvoVoltArr=DAQData[:,0]
-
-
+        liRefVoltArr=DAQData[:,1]
         P=np.polyfit(galvoVoltArr,MHzScaleArr, 1)
-        temp=np.linspace(startVolt,stopVolt,num=images.shape[0])
+        temp=np.linspace(startVolt,stopVolt,num=imagesSumArr.shape[0])
         imageFreqMhzArr=P[1]+P[0]*temp
 
 
-        analyzer=Analyzer(images, imageFreqMhzArr)
+        #x1=MHzScaleArr
+        #x2=imageFreqMhzArr
+
+        #y1=liRefVoltArr
+        #y1=-y1
+        #y1=y1-np.min(y1)
+        #y1=y1/np.max(y1)
+        #y2=imagesSumArr
+        #y2=y2-np.min(y2)
+        #y2=y2/np.max(y2)
+        #plt.plot(x1,y1)
+        #plt.plot(x2,y2)
+        #plt.show()
+
+        S=float(self.saturationConstantBox.get()) #saturation constant, I/I_sat
+        analyzer=Analyzer(imagesSumArr,imageFreqMhzArr,S)
         analyzer.fit_Image_Data()
+
         #print(analyzer.T)
 #
 #
-        #self.save_Spectral_Fit_Plot(analyzer,DAQData)
+        #self._Make_And_Save_Spectral_Fit_Plot(analyzer, DAQData)
         #plt.plot(imageFreqMhzArr,images)
         #plt.plot(imageFreqMhzArr,analyzer.fitFunc(imageFreqMhzArr))
         #plt.show()
-    def save_Spectral_Fit_Plot(self,analyzer,DAQData):
+    def _Make_And_Save_Spectral_Fit_Plot(self, analyzer, DAQData):
         fileName=self.anlFileNameBox.get()
         folderPath=self.anlFolderPathBox.get()
         galvoVoltArr=DAQData[:,0]
@@ -632,6 +662,11 @@ class ExperimentGUI:
         self.save_Data()
         self.make_Info_File()
         #self.make_Lithium_Ref_Plot()
+
+        #turn off the helium flow when done
+        flowOut=DAQPin(gv.flowOutPin)
+        flowOut.write(0)
+        flowOut.close()
     def make_Lithium_Ref_Plot(self):
         fileName=self.dataFileNameBox.get()
         folderPath=self.dataFolderPathBox.get()

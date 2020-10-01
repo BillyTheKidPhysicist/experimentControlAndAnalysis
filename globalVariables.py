@@ -58,9 +58,13 @@ powerInPin = "ai4"
 flowInPin  = "ai5"
 pin6Pin    ="ai6"
 galvoInRawPin="ai7"
-pinNameList      =[galvoOutPin,flowOutPin,galvoInPin,pin1Pin       ,etalonInPin    ,lithiumRefInPin,powerInPin  ,flowInPin,galvoInRawPin,pin6Pin]
-pinVoltRangeList =[[-5.0,5.0]  ,[0,2.0]   ,[-5.0,5.0] ,[-10.0,10.0],[-10.0,10.0]     ,[-5.0,0.0 ]  ,[-10.0,10.0],[0.0,2.0],[-1.0,1.0]   ,[-10.0,10.0]]
-pinTypeList      =["out"      ,"out"     ,"in"      ,"in"      ,"in"               ,"in"        , "in"       , "in"    ,"in"         ,"in"]
+servoPin="ctr0"
+shutterPin="port0/line1"
+pinNameList      =[galvoOutPin,flowOutPin,galvoInPin,pin1Pin       ,etalonInPin    ,lithiumRefInPin,powerInPin
+    ,flowInPin,galvoInRawPin,pin6Pin,servoPin,shutterPin]
+pinVoltRangeList =[[-5.0,5.0]  ,[0,2.0]   ,[-5.0,5.0] ,[-10.0,10.0],[-10.0,10.0]     ,[-5.0,0.0 ]  ,[-10.0,10.0]
+    ,[0.0,2.0],[-1.0,1.0]   ,[-10.0,10.0],[None,None],[None,None]]
+pinTypeList      =["out","out","in","in","in","in", "in", "in","in","in","counterOut","digitalOut"]
 
 
 
@@ -107,7 +111,7 @@ timePerVolt=1 #seconds that it should take to scan a volt. This is so the laser 
 fullScanRange=maxScanVal-minScanVal #the total scan range
 stepsPerVoltGalvo=25 #number of steps per volt when taking the laser to or from a value. This is only used in DAQPin
     #class to prevent the galvo from sweeping too fast
-samplesPerVoltDAQ=25 #Number of DAQ readings per scanned volt. This is independent of image aquisition, but at every
+samplesPerVoltDAQ=100 #Number of DAQ readings per scanned volt. This is independent of image aquisition, but at every
     #image aquisition an additional point is collected as well.
 #----------
 

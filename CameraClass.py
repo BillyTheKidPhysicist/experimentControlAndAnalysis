@@ -11,6 +11,7 @@ import threading
 
 
 #TODO: DONT PRESENT A WARNING FOR LEAVING imageParams=None
+#TODO: FIX PROGRESS BAR NOT WORKING
 
 class Camera:
     def __init__(self,camName,expTime,imageParams=None,bin=None,temp=-25,binx=None,biny=None):

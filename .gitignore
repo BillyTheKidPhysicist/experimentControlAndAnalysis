@@ -10,3 +10,5 @@ run2/
 x
 y
 transversePlot2.py
+farFieldScan.py
+nearFieldScan.py

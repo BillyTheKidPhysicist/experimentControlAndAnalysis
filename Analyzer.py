@@ -1,3 +1,5 @@
+import time
+import sys
 import numpy as np
 import scipy.optimize as spo
 import scipy.special as spf
@@ -7,19 +9,19 @@ import globalVariables as gv
 import matplotlib.pyplot as plt
 
 class Analyzer:
-    def __init__(self,imagesAvgArr,imageFreqMHzArr):
-        self.imageAvgArr=imagesAvgArr
+    def __init__(self,imagesSumArr,imageFreqMHzArr,S):
+        #imagesSumArr: array where each entry is the sum of the pixels in that image over a region
+        #imageFreqMHzArr: MHz values that correspond to images in imagesSumArr
+        #S: I/I_sat. saturation constant
+        self.imagesSumArr=imagesSumArr
         self.imageFreqMHzArr=imageFreqMHzArr
+        self.S=S
         self.fitFunc=None #A function that returns the spectral profile of the fit
         self.F0=None #the value of the center of the peak of the profile
         self.FWHM=None #the FWHM of the data
         self.T=None #the temperature of the fit
 
 
-    def gauss(self,T,v,m=gv.massLi7,v0=0):
-        t1=np.sqrt(m/(2*np.pi*gv.kB*T))
-        t2=np.exp(-m*np.power(v-v0,2)/(2*gv.kB*T))
-        return t1*t2
 
 
     def fit_Image_Data(self):
@@ -45,7 +47,7 @@ class Analyzer:
         #   a: height scaling value
         #   b: center value of frequency
         #   c: offset from zero
-        #   dF0: FWHM of doppler broadening
+        #   dF: FWHM of doppler broadening
         #
         #   RETURNS
         #   PF: array of paramters in voigt fit
@@ -63,9 +65,9 @@ class Analyzer:
         #plt.show()
 
 
-        smooth=self.imageAvgArr#spsi.savgol_filter(pixelValue,pixelValue.shape[0]//10+1,3) temporarily changed
-        minHeight=(np.max(smooth)-np.min(smooth))/2.0 +np.min(smooth)
-        peak=spsi.find_peaks(smooth,height=minHeight)[0][0]
+        #smooth=self.imagesSumArr#spsi.savgol_filter(pixelValue,pixelValue.shape[0]//10+1,3) temporarily changed
+        #minHeight=(np.max(smooth)-np.min(smooth))/2.0 +np.min(smooth)
+        #peak=spsi.find_peaks(smooth,height=minHeight)[0][0]
         error=np.ones(self.imageFreqMHzArr.shape[0])
         #error[peak+2]=.2
         #error[peak-2]=.2
@@ -77,106 +79,127 @@ class Analyzer:
         #aG: height constant
         #bG: center frequency
         #cG: vertical offset
-        #dF0G: FWHM of doppler broadening
-        aG=np.max(self.imageAvgArr[10:-10])-np.average(self.imageAvgArr[10:-10])    #height constant
-        bG=self.imageFreqMHzArr[np.argmax(self.imageAvgArr)]  #x axis offset
-        cG=np.average(self.imageAvgArr[int(self.imageAvgArr.shape[0]/20.0):]) #Set the y axisoffsest guess based on the average of the last 10% of data
-        dF0G=30 #good guess
+        #dFG: FWHM of doppler broadening
+        aG=np.max(self.imagesSumArr)-np.min(self.imagesSumArr)    #height constant
+        bG=self.imageFreqMHzArr[np.argmax(self.imagesSumArr)]  #x axis offset
+        cG=np.average(self.imagesSumArr[-int(self.imagesSumArr.shape[0]/10.0):]) #Set the y axisoffsest guess based on the 
+                    # average of the last 10% of data
+        dFG=20  #good guess for FWHM of gaussian
+
+        y1=np.mean(self.imagesSumArr[:5]) #take average of first few data points
+        y2=np.mean(self.imagesSumArr[-5:]) #take the average of the last few data points
+        x1=np.mean(self.imageFreqMHzArr[:5])
+        x2=np.mean(self.imageFreqMHzArr[-5:])
+        tiltmG=(y2-y1)/(x2-x1)
 
 
-        #index            0      1                2      3
-        guess = np.array([aG    ,bG            , cG*1.0, dF0G ]) #array of guess
+        guess = np.array([aG    ,bG            , cG*1.0, dFG ,tiltmG]) #array of guess
+
+        PF, pcov = spo.curve_fit(self.spectral_Profile_Wrapper, self.imageFreqMHzArr, self.imagesSumArr, p0=guess)
+        time.sleep(.1)
+        perr=np.sqrt(np.diag(pcov))
+        print(PF)
+        print(perr)
 
 
 
-        PF, pcov = spo.curve_fit(self.spectralProfile, self.imageFreqMHzArr, self.imageAvgArr, p0=guess,sigma=error)
         self.F0=self.find_Voigt_Peak(self.imageFreqMHzArr,PF)
-        dF0=PF[3] #FWHM of spectral profile
+        dF=PF[3] #FWHM of spectral profile
 
         def temp(freq):
             #freq: HHz
-            return self.spectralProfile(freq,*PF)
+            return self.spectral_Profile_Wrapper(freq, *PF)
         self.fitFunc=temp
-        self.T=self.calculateTemp(dF0)
+        print(dF)
+        self.T=self.calculateTemp(dF)
+        print(self.T*1E3)
+        plt.scatter(self.imageFreqMHzArr, self.imagesSumArr, c='red',marker='x')
+        x=np.linspace(self.imageFreqMHzArr[0],self.imageFreqMHzArr[-1],num=1000)
+        plt.plot(x, self.spectral_Profile_Wrapper(x, *PF))
+        plt.show()
+        
 
 
 #---------SINGLE VOIGT FIT---------
 #this voigt is normalized to a height of 1, then multiplied by the variable a
 #there is no yaxis offset in the voigt, that is done later
-    def voigt(self,f,a,f0,dF0,gamma):
+    def voigt(self,f,a,f0,dF,gamma):
         #units must be consistent!!
         #f, frequency value
         #a, height of voigt
         #f0, center frequency
-        #dF0, FWHM of the gaussian
+        #dF, FWHM of the gaussian
         #gamma, FWHM of the lorentzian
-        sigma=dF0/(2*np.sqrt(2*np.log(2))) #convert gaussian FWHM to std
+        sigma=dF/(2*np.sqrt(2*np.log(2))) #convert gaussian FWHM to std
         gamma=gamma/2 #convert lorentzian FWHM to HWHM
         x=f-f0
-        z=(x+gamma*1.0J)/(sigma*np.sqrt(2.0)) #complex argument
-        V=np.real(spf.wofz(z))/(sigma*np.sqrt(2*np.pi)) #voigt profile
-
-
-        #now normalize to 1 at peak, makes fitting easier
-        z0=(gamma*1.0J)/(sigma*np.sqrt(2.0)) #z at peak
-        V0=np.real(spf.wofz(z0))/(sigma*np.sqrt(2*np.pi)) #height of voigt at peak
-        return a*V/V0 #makes the height equal to a
-
-
+        v0=spf.voigt_profile(0,sigma,gamma)
+        v=a*spf.voigt_profile(x,sigma,gamma)/v0
+        return v
+    def spectral_Profile_Wrapper(self,freq,a,b,c,dF,tiltm):
+        #this is wrapper for the sextuple voigt fit that also adds an offset, and maybe in the future the ability to
+        #compensate for saturation intensity
+        gamma=gv.LiTau/1E6
+        val= self.spectral_Profile(freq, a, b, c, dF, gamma)
+        val=val+(tiltm*(freq-self.imageFreqMHzArr[0]))
+        return val
 #------SEXTUPLE VOIGT FIT----------
-    def spectralProfile(self,freq,a,b,c,dF0,gamma=gv.LiTau/1E6):
+    def spectral_Profile(self, freq, a, b, c, dF,gamma ):
+        #this make a sextuple voigt fit
         #units must be consitant!
         #freq: frequency
         #a: height constant
         #b: center frequency
         #c: vertical offset
-        #dF0: FWHM of doppler broadening
+        #dF: FWHM of doppler broadening
         #gamma: FWHM of lorentzian
 
-        ratio=4*(1/.55)#ratio of intensity of f=2 to f=1. First number is power ratio in bands. Second fraction is ratio
-                    #of hyperfine transitions
+        #gamma=gamma*np.sqrt(1+S) #linewidth broadening
+
+        ratio=4*2.54#ratio of intensity of f=2 to f=1. First number is power ratio in bands. Second fraction is ratio
+                    #of peaks in lithium reference cell
         a2=ratio*a
         a1=a
-        val=c #start with the offset
-
-        #F=2 transition
-        val+=a2*self.voigt(freq, gv.S21, b+0*gv.F1Sep/1E6, dF0, gamma)
-        val+=a2*self.voigt(freq, gv.S22, b+gv.F2Sep/1E6, dF0, gamma)
-        val+=a2*self.voigt(freq, gv.S23, b+gv.F3Sep/1E6, dF0, gamma)
-
-
-        #F=1 transition
-        val+=a1*self.voigt(freq, gv.S10, b+gv.F0Sep/1E6, dF0, gamma)
-        val+=a1*self.voigt(freq, gv.S11, b+gv.F1Sep/1E6, dF0, gamma)
-        val+=a1*self.voigt(freq, gv.S12, b+gv.F2Sep/1E6, dF0, gamma)
+        val=0
+        ##F=2 transition
+        val+=a2*self.voigt(freq, gv.S21, b+gv.F1Sep/1E6, dF, gamma)
+        val+=a2*self.voigt(freq, gv.S22, b+gv.F2Sep/1E6, dF, gamma)
+        val+=a2*self.voigt(freq, gv.S23, b+gv.F3Sep/1E6, dF, gamma)
+#
+#
+        ##F=1 transition
+        val+=a1*self.voigt(freq, gv.S10, b+gv.F0Sep/1E6, dF, gamma)
+        val+=a1*self.voigt(freq, gv.S11, b+gv.F1Sep/1E6, dF, gamma)
+        val+=a1*self.voigt(freq, gv.S12, b+gv.F2Sep/1E6, dF, gamma)
+        val+=c #add the offset
         return val
 
-    def calculateTemp(self,dF0,f0=gv.Li_D2_Freq,MHz=True):
+    def calculateTemp(self,dF,f0=gv.Li_D2_Freq,MHz=True):
         #calculate the temperatute in mk for a given doppler width at a given frequency F0
         if MHz==True:
-            dF0=dF0*1E6
-        return (dF0/f0)**2 *(gv.massLi7*gv.cLight**2)/(8*gv.kB*np.log(2))
+            dF=dF*1E6
+        return (dF/f0)**2 *(gv.massLi7*gv.cLight**2)/(8*gv.kB*np.log(2))
 
     def cheatData(self,offset=5,showFit=True,returnFit=True):
 
         #need to include better interaction with the plot! doesn't work as expected when accessed from mainGUI
 
 
-        smooth=spsi.savgol_filter(self.imageAvgArr,21,5)
+        smooth=spsi.savgol_filter(self.imagesSumArr,21,5)
         minHeight=(np.max(smooth)-np.min(smooth))/2.0 +np.min(smooth)
         peak=spsi.find_peaks(smooth,height=minHeight)[0][0]
 
         x=np.flip(self.imageFreqMHzArr[peak-offset:])
-        y=np.flip(self.imageAvgArr[peak-offset:])
+        y=np.flip(self.imagesSumArr[peak-offset:])
         #newPeak=184
         error=np.ones(x.shape[0])
 
         PF,stdDev=self.fit_Image_Data(x,y)
-        a, b, c, dF0 = PF
+        a, b, c, dF = PF
         if showFit==True:
             voigtFit=[]
             for elem in x:
-                voigtFit.append(self.spectralProfile(elem, a, b, c, dF0))
+                voigtFit.append(self.spectral_Profile(elem, a, b, c, dF))
 
             plt.title("\'Cheat\' method. MAKE SURE FIT LOOKS GOOD")
             plt.xlabel("pixel value")
@@ -192,13 +215,13 @@ class Analyzer:
             print("left")
 
         if returnFit==True:
-            voigtFit=np.asarray(self.spectralProfile(self.imageFreqMHzArr, a, b, c, dF0))
-            return [a, b, c, dF0], stdDev, voigtFit
+            voigtFit=np.asarray(self.spectral_Profile(self.imageFreqMHzArr, a, b, c, dF))
+            return [a, b, c, dF], stdDev, voigtFit
         return PF, stdDev
 
     def find_Voigt_Peak(self,imageFreqMHzArr,PF):
         x=np.linspace(self.imageFreqMHzArr[0],self.imageFreqMHzArr[-1],num=1000000)
-        y=self.spectralProfile(x,*PF)
+        y=self.spectral_Profile_Wrapper(x, *PF)
         F0=x[spsi.find_peaks(y)[0]]
         return F0[0]
 

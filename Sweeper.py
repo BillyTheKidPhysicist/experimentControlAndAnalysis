@@ -7,7 +7,6 @@ import time
 import numpy as np
 from DAQClass import DAQPin
 from CameraClass import Camera
-#TODO: MAKE THIS GO FASTER. WHY IS IT SO SLOW?
 class Sweeper:
     def __init__(self,GUI):
         self.GUI=GUI
