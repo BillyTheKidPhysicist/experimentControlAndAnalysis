@@ -106,7 +106,7 @@ F3Sep=-6.929E6
 #----------Laser scanning constants--------
 minScanVal=-4.0 #minimum expected scan value
 maxScanVal=4.0 #maximum expected scan value
-timePerVolt=1 #seconds that it should take to scan a volt. This is so the laser doesn't lose lock
+timePerVolt=.250 #seconds that it should take to scan a volt. This is so the laser doesn't lose lock
                #you can't let it scan too fast
 fullScanRange=maxScanVal-minScanVal #the total scan range
 stepsPerVoltGalvo=25 #number of steps per volt when taking the laser to or from a value. This is only used in DAQPin

@@ -14,7 +14,7 @@ import threading
 #TODO: FIX PROGRESS BAR NOT WORKING
 
 class Camera:
-    def __init__(self,camName,expTime,imageParams=None,bin=None,temp=-25,binx=None,biny=None):
+    def __init__(self,camName,expTime,imageParams=None,bin=None,temp=-20,binx=None,biny=None):
         #camName: Name of camera, or rather position. Far field vs near field
         #expTime: exposure time of camera in milliseconds
         #imageParam: A list of image paramters, [x1,x2,y1,y2], where x1 is start of image region along x, x2 is end of
@@ -28,8 +28,10 @@ class Camera:
 
         self.camName=camName
         self.expTime=expTime
-        if imageParams==None:
-            imageParams=[0,9999999,0,999999] #set to full range
+        #if imageParams==None:
+        #    imageParams=[0,9999999,0,999999] #set to full range
+        if bin is None and binx is None and biny is None:
+            bin=1
         self.imageParams=imageParams
         self.bin=bin
         self.binx=binx

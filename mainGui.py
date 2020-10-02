@@ -462,6 +462,7 @@ class ExperimentGUI:
 
 
     def do_Data_Analysis(self):
+        #pretty broken right now
         self.catch_Errors_Analysis() #check if the user has any messed up input
         self.save_Settings()
         fileName=self.anlFileNameBox.get()
