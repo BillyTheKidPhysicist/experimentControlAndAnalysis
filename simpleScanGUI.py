@@ -157,10 +157,10 @@ class GUI:
             tempCamera=Camera(self.cameraVar.get(),1000) #the camera will cool down
             tempCamera.close() #now close it. It will stay cool though
     def open_Aperture(self):
-        self.shutterOut.write_High()
+        self.shutterOut.write_Low()
         time.sleep(.001)
     def close_Aperture(self):
-        self.shutterOut.write_Low()
+        self.shutterOut.write_High()
         time.sleep(.001)
     def close_GUI(self):
         self.save_Settings()
@@ -172,7 +172,6 @@ class GUI:
         self.galvoOut=DAQPin(gv.galvoOutPin)
         self.shutterOut=DAQPin(gv.shutterPin)
         self.galvoOut.write(float(self.voltStartBox.get()))
-        
         x1=float(self.x1Box.get())
         y1=float(self.y1Box.get())
         x2=float(self.x2Box.get())
@@ -191,12 +190,13 @@ class GUI:
             print('THERE IS ALREADY A FILE WITH THAT NAME IN THAT FOLDER')
             gv.error_Sound()
             sys.exit()
+
+
+
         if self.shutterVar.get()==True:
-            self.run_With_shutter()
+            self.sweep_With_shutter()
         else:
-            self.run_Without_shutter()
-        self.galvoOut.close()
-        self.shutterOut.close()
+            self.sweep_Without_shutter()
 
     def take_Dark_Image_Average(self, num=3):
         image=self.camera.aquire_Image()
@@ -205,7 +205,8 @@ class GUI:
         image=image/num  #average the three images
         return image
 
-    def run_With_shutter(self):
+    def sweep_With_shutter(self):
+
 
         self.open_Aperture()
         darkImage1=self.take_Dark_Image_Average() #dark image shutter open
@@ -219,31 +220,36 @@ class GUI:
             self.galvoOut.write(volt)
             #take with shutter open
             self.open_Aperture()
+            #gv.begin_Sound()
             image1=self.camera.aquire_Image()
             y1List.append(np.sum(image1-darkImage1))
 
             #take with shutter closed
             self.close_Aperture()
+            #gv.finished_Sound()
             image2=self.camera.aquire_Image()
             y2List.append(np.sum(image2-darkImage2))
+        self.galvoOut.close()
+        self.shutterOut.close()
+        self.camera.close()
 
-
-        y1=np.asarray(y1List)
-        y2=np.asarray(y2List)
+        y1=np.asarray(y1List) #shutter open
+        y2=np.asarray(y2List) #shutter closed
         ratio=np.trapz(y1)/np.trapz(y2)
         plt.suptitle('Signal with shutter closed and open')
-        plt.title('ratio of integral of on to off = '+str(np.round(ratio, 3)))
+        plt.title('ratio of integral of open to close = '+str(np.round(ratio, 3)))
         plt.plot(self.voltArr, y1, label='shutter open')
         plt.plot(self.voltArr, y2, label='shutter closed')
         plt.xlabel('Volts')
         plt.ylabel('Pixel counts')
         plt.legend()
         plt.grid()
+
         if self.saveDataVar.get()==True:
             plt.savefig(self.folderPath.get()+'\\'+self.fileName.get())
         if self.showPlotVar.get()==True:
             plt.show()
-    def run_Without_shutter(self):
+    def sweep_Without_shutter(self):
         darkImage=self.take_Dark_Image_Average()
 
         imageSumList=[]
@@ -254,6 +260,10 @@ class GUI:
             imageSumList.append(np.sum(image))
         imageSumArr=np.asarray(imageSumList)
 
+        self.galvoOut.close()
+        self.shutterOut.close()
+        self.camera.close()
+
         plt.plot(self.voltArr, imageSumArr)
         plt.xlabel('Volts')
         plt.ylabel('Pixel counts')
@@ -261,8 +271,8 @@ class GUI:
         plt.grid()
         if self.saveDataVar.get()==True:
             plt.savefig(self.folderPath.get()+'\\'+self.fileName.get())
-
-        plt.show()
+        if self.showPlotVar.get()==True:
+            plt.show()
     def save_Settings(self):
         file=open("simpleScaneGUI_Settings.txt", "w")
         for item in self.settingsList:
