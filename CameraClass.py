@@ -32,6 +32,7 @@ class Camera:
         #    imageParams=[0,9999999,0,999999] #set to full range
         if bin is None and binx is None and biny is None:
             bin=1
+
         self.imageParams=imageParams
         self.bin=bin
         self.binx=binx
@@ -90,6 +91,10 @@ class Camera:
             gv.error_Sound()
             sys.exit()
 
+        #make image params integer if not already so
+        if self.imageParams is not None:
+            for i in range(4):
+                self.imageParams[i]=int(self.imageParams[i])
 
         #binning results cannot conflict
         binError=False
@@ -206,15 +211,19 @@ class Camera:
         # I don't set the image region because it's a little complicatd with the binning. Instead I just take a full image
         #and format before returning
 
-        try:
+
+        try: #TODO: WHY DOES THE CAMERAS NAME CHANGE?
             self.cameraIndex=fli.FLIOpen('flipro0', 'usb', 'camera')
         except:
-            raise Exception('NO FLI CAMERA CONNECTED, OR INCORRECT FLI CAMERA CONNECTED. READ COMMENTS BELOW IN CODE FOR MORE INFO')
-            #For some reason when trying to get a list of connected FLI cameras and their names if there are none
-            #connected then a silent error occurs and python exits. This does not occur if I do FLIOpen first, but it
-            #depends on me knowing the name of the camera which I think is always 'flipro0' for the first one. This error
-            #will be thrown if that isn't true as well, such as using a different FLI camera, or some other change
-            #in ports or something. Wish it didn't have to be like this but this library is a home made wrapper
+            try:
+                self.cameraIndex=fli.FLIOpen('flipro1', 'usb', 'camera')
+            except:
+                raise Exception('NO FLI CAMERA CONNECTED, OR INCORRECT FLI CAMERA CONNECTED. READ COMMENTS BELOW IN CODE FOR MORE INFO')
+                #For some reason when trying to get a list of connected FLI cameras and their names if there are none
+                #connected then a silent error occurs and python exits. This does not occur if I do FLIOpen first, but it
+                #depends on me knowing the name of the camera which I think is always 'flipro0' for the first one. This error
+                #will be thrown if that isn't true as well, such as using a different FLI camera, or some other change
+                #in ports or something. Wish it didn't have to be like this but this library is a home made wrapper
         if self.imageParams is None:
             #if no value is provided use the full feild of view
             self.imageParams=[0,1024,0,1024]
@@ -235,6 +244,7 @@ class Camera:
                 if currentTemp<=self.temp:
                     print('Target temperature reached')
                     loop=False
+
         fli.setExposureTime(self.cameraIndex, self.expTime)
         fli.setVBin(self.cameraIndex,self.binx)
         fli.setHBin(self.cameraIndex,self.biny)
@@ -275,10 +285,12 @@ class Camera:
     def aquire_Image(self):
         if self.camName=='FAR':
             img=self._aquire_Image_FLI()
+            img=img.astype(int) #change it from unsigned to signed int. Otherwise weird math can happen
             img=np.rot90(img) #image is sideways relative to mounting screw, needs to be rotated
             return img
         elif self.camName=='NEAR':
             img=self._aquire_Image_Ximea()
+            img=img.astype(int)#change it from unsigned to signed int. Otherwise weird math can happen
             return img
         else:
             raise Exception('NO VALID CAMERA NAME PROVIDED')

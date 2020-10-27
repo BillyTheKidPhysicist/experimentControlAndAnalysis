@@ -1,3 +1,4 @@
+from astropy.io import fits
 import time
 from DAQClass import DAQPin
 import globalVariables as gv
@@ -158,10 +159,10 @@ class GUI:
             tempCamera.close() #now close it. It will stay cool though
     def open_Aperture(self):
         self.shutterOut.write_Low()
-        time.sleep(.001)
+        time.sleep(.05)
     def close_Aperture(self):
         self.shutterOut.write_High()
-        time.sleep(.001)
+        time.sleep(.05)
     def close_GUI(self):
         self.save_Settings()
         self.window.destroy()
@@ -172,15 +173,16 @@ class GUI:
         self.galvoOut=DAQPin(gv.galvoOutPin)
         self.shutterOut=DAQPin(gv.shutterPin)
         self.galvoOut.write(float(self.voltStartBox.get()))
-        x1=float(self.x1Box.get())
-        y1=float(self.y1Box.get())
-        x2=float(self.x2Box.get())
-        y2=float(self.y2Box.get())
+        x1=int(self.x1Box.get())
+        y1=int(self.y1Box.get())
+        x2=int(self.x2Box.get())
+        y2=int(self.y2Box.get())
         imageParams=[x1,x2,y1,y2]
-        self.camera=Camera(self.cameraVar.get(),float(self.expTimeBox.get()),imageParams=imageParams)
+        binSize=int(self.binSizeBox.get())
+        self.camera=Camera(self.cameraVar.get(),float(self.expTimeBox.get()),imageParams=imageParams,bin=binSize)
         
-        
-        self.voltArr=np.linspace(int(self.voltStartBox.get()), int(self.voltStopBox.get()),
+
+        self.voltArr=np.linspace(float(self.voltStartBox.get()), float(self.voltStopBox.get()),
                                  num=int(self.numImagesBox.get()))
         if os.path.isdir(self.folderPath.get())==False:
             print('-----ERROR-----------')
@@ -192,7 +194,7 @@ class GUI:
             sys.exit()
 
 
-
+        plt.close('all')
         if self.shutterVar.get()==True:
             self.sweep_With_shutter()
         else:
@@ -206,71 +208,122 @@ class GUI:
         return image
 
     def sweep_With_shutter(self):
+        gv.begin_Sound()
+        self.galvoOut.write(self.voltArr[0])
+        #self.open_Aperture()
+        #darkImage1=self.take_Dark_Image_Average() #dark image shutter open
+        #self.close_Aperture()
+        #darkImage2=self.take_Dark_Image_Average() #dark image shutter closed
 
-
-        self.open_Aperture()
-        darkImage1=self.take_Dark_Image_Average() #dark image shutter open
-        self.close_Aperture()
-        darkImage2=self.take_Dark_Image_Average() #dark image shutter closed
-
-        y1List=[] #shutter open list of image sums
-        y2List=[] #shutter closed list of image sums
+        image1MeanList=[] #shutter open list of image sums
+        image2MeanList=[] #shutter closed list of image sums
+        image1List=[]
+        image2List=[]
 
         for volt in self.voltArr:
             self.galvoOut.write(volt)
             #take with shutter open
             self.open_Aperture()
-            #gv.begin_Sound()
             image1=self.camera.aquire_Image()
-            y1List.append(np.sum(image1-darkImage1))
+            image1List.append(image1)
+            image1MeanList.append(np.mean(image1))
 
             #take with shutter closed
             self.close_Aperture()
-            #gv.finished_Sound()
             image2=self.camera.aquire_Image()
-            y2List.append(np.sum(image2-darkImage2))
+            image2List.append(image2)
+            image2MeanList.append(np.mean(image2))
+
+
         self.galvoOut.close()
         self.shutterOut.close()
         self.camera.close()
+        gv.finished_Sound()
 
-        y1=np.asarray(y1List) #shutter open
-        y2=np.asarray(y2List) #shutter closed
-        ratio=np.trapz(y1)/np.trapz(y2)
+        y1=np.asarray(image1MeanList) #shutter open
+        y2=np.asarray(image2MeanList) #shutter closed
+
+        numImages=3
+        delta1=np.max(y1)-np.mean((y1[:numImages]+y1[-numImages:])/2)
+        delta2=np.max(y2)-np.mean((y2[:numImages]+y2[-numImages:])/2)
+
+
+        ratio=delta1/delta2
         plt.suptitle('Signal with shutter closed and open')
-        plt.title('ratio of integral of open to close = '+str(np.round(ratio, 3)))
-        plt.plot(self.voltArr, y1, label='shutter open')
-        plt.plot(self.voltArr, y2, label='shutter closed')
+        plt.title('ratio of peaks of open to close = '+str(np.round(ratio, 6)))
+        plt.plot(self.voltArr, y1, label='open,delta= '+str(np.round(delta1, 1)))
+        plt.plot(self.voltArr, y2, label='close,delta= '+str(np.round(delta2, 1)))
         plt.xlabel('Volts')
         plt.ylabel('Pixel counts')
         plt.legend()
         plt.grid()
 
         if self.saveDataVar.get()==True:
-            plt.savefig(self.folderPath.get()+'\\'+self.fileName.get())
+            plt.savefig(self.folderPath.get()+'\\'+self.fileName.get()+'Graph.png')
+            image1SaveList=[]
+            image2SaveList=[]
+            for i in range(len(image1List)):
+                image1SaveList.append(np.rot90(np.transpose(image1List[i])))
+                image2SaveList.append(np.rot90(np.transpose(image2List[i])))
+            hdu1=fits.PrimaryHDU(image1SaveList)  #make a Header/Data Unit of images
+            hdul1=fits.HDUList([hdu1])  #list of HDUs to save
+            hdu2=fits.PrimaryHDU(image2SaveList)  #make a Header/Data Unit of images
+            hdul2=fits.HDUList([hdu2])  #list of HDUs to save
+
+            fitsFileName=self.fileName.get()
+            try:
+                hdul1.writeto(self.folderPath.get()+'\\'+fitsFileName+'ShutterOpen.fits')  #now save it
+                hdul2.writeto(self.folderPath.get()+'\\'+fitsFileName+'ShutterClosed.fits')  #now save it
+            except:  #fits doesn't let you delete stuff accidently
+                print('THAT FILE ALREADY EXISTS. DELETE IT TO OVERWRITE@')
+
         if self.showPlotVar.get()==True:
             plt.show()
     def sweep_Without_shutter(self):
-        darkImage=self.take_Dark_Image_Average()
 
-        imageSumList=[]
+        gv.begin_Sound()
+        self.galvoOut.write(self.voltArr[0])
+        darkImage=self.take_Dark_Image_Average()
+        print('here')
+
+        imageMeanList=[]
+        imageList=[]
         for volt in self.voltArr:
             self.galvoOut.write(volt)
             image=self.camera.aquire_Image()
-            image=image-darkImage
-            imageSumList.append(np.sum(image))
-        imageSumArr=np.asarray(imageSumList)
+            imageList.append(image)
+            image=image-darkImage*0
+            imageMeanList.append(np.mean(image))
+        imageSumArr=np.asarray(imageMeanList)
 
         self.galvoOut.close()
         self.shutterOut.close()
         self.camera.close()
+        gv.finished_Sound()
+
+        numImages=3
+        delta=np.max(imageSumArr)-np.mean((imageSumArr[:numImages]+imageSumArr[-numImages:])/2)
 
         plt.plot(self.voltArr, imageSumArr)
+        plt.title('Peak minus first value= '+str(np.round(delta,2)))
         plt.xlabel('Volts')
         plt.ylabel('Pixel counts')
-        plt.legend()
         plt.grid()
         if self.saveDataVar.get()==True:
-            plt.savefig(self.folderPath.get()+'\\'+self.fileName.get())
+            print(self.folderPath.get()+'\\'+self.fileName.get()+'Graph')
+            plt.savefig(self.folderPath.get()+'\\'+self.fileName.get()) #save plot
+            #now save fits file
+            saveImageList=[]
+            for item in imageList:
+                saveImageList.append(np.rot90(np.transpose(item)))
+            hdu=fits.PrimaryHDU(saveImageList)  #make a Header/Data Unit of images
+            hdul=fits.HDUList([hdu])  #list of HDUs to save
+            fitsFileName=self.fileName.get()+'.fits'
+            try:
+                hdul.writeto(self.folderPath.get()+'\\'+fitsFileName)  #now save it
+            except:  #fits doesn't let you delete stuff accidently
+                print('THAT FILE ALREADY EXISTS. DELETE IT TO OVERWRITE@')
+
         if self.showPlotVar.get()==True:
             plt.show()
     def save_Settings(self):
