@@ -1,0 +1,16 @@
+-.95
+16
+.05
+5
+1000
+5
+300
+500
+300
+500
+FAR
+False
+True
+True
+poop
+C:\Desktop\test
