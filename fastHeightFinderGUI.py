@@ -16,17 +16,17 @@ import scipy.optimize as spo
 
 class GUI:
     def __init__(self):
-        self.settingsList=[]
-        self.x1Box=None
-        self.x2Box=None
-        self.y1Box=None
-        self.y2=None
+        self.settingsList=[] #list of tkinter field objects to save to a settings file
+        self.x1Box=None #tkinter box object for image parameters
+        self.x2Box=None #tkinter box object for image parameters
+        self.y1Box=None #tkinter box object for image parameters
+        self.y2Box=None #tkinter box object for image parameters
         self.voltOnResArr=None  #array to to hold voltage values to scan over near resonance
         self.voltOffRes=None #voltage value far off resonance
         self.voltPlotArr=None #array to be used in plotting
         self.camera=None  #to hold the camera opject
-        self.galvoOut=None
-        self.shutterOut=None  #shutter control
+        self.galvoOut=None #galvo voltage control
+        self.shutterOut=None  #shutter control for OP laser
         self.sigmaGuess=.025 #guess of value for sigma in volts
         self.gammaGuess=1e-3 #guess for value of gamma in volts
         self.window=tk.Tk()
@@ -180,18 +180,20 @@ class GUI:
         self.window.mainloop()
 
     def cool_Camera(self):
+        #cool the far field camera down
         if self.cameraVar.get()=="NEAR":
             print("YOU CAN'T COOL THE NEAR FIELD CAMERA")
             gv.warning_Sound()
         else:
             tempCamera=Camera(self.cameraVar.get(), 1000)  #the camera will cool down
             tempCamera.close()  #now close it. It will stay cool though
-
     def open_Aperture(self):
+        #open the OP shutter
         self.shutterOut.write_Low()
         time.sleep(.05)
 
     def close_Aperture(self):
+        #close the OP shutter
         self.shutterOut.write_High()
         time.sleep(.05)
 
@@ -206,16 +208,19 @@ class GUI:
         self.shutterOut=DAQPin(gv.shutterPin)
         v0=float(self.v0Box.get()) #center value of transition from user
         df=float(self.fwhmBox.get()) #fwhm value from user
-        offResFact=3 #go this many fwhm away from center
+        offResFact=3 #go this many fwhm away from center for 'far' off resonance background
         numOnRes=int(self.numImgOnResBox.get()) #number of images to take near the resonance
-        x1=int(self.x1Box.get())
-        y1=int(self.y1Box.get())
-        x2=int(self.x2Box.get())
-        y2=int(self.y2Box.get())
+        x1=int(self.x1Box.get()) #image region values
+        y1=int(self.y1Box.get()) #image region values
+        x2=int(self.x2Box.get()) #image region values
+        y2=int(self.y2Box.get()) #image region values
         imageParams=[x1,x2,y1,y2]
-        binSize=int(self.binSizeBox.get())
+        binSize=int(self.binSizeBox.get()) #binning value
 
-        self.camera=Camera(self.cameraVar.get(), float(self.expTimeBox.get()), imageParams=imageParams, bin=binSize)
+        #initialize camera object. can be near or far field camera
+        expTime=int(self.expTimeBox.get()) #exposure time, ms
+        whichCam=self.cameraVar.get() #which camera to use, 'FAR' or 'NEAR'
+        self.camera=Camera(whichCam,expTime , imageParams=imageParams, bin=binSize)
 
         self.voltOffRes=v0-offResFact*df #voltage value to take images at 'far' off resonance
         self.voltOnResArr=np.linspace(v0-df,v0+df,num=numOnRes) #array of voltages to take images of near the peak
@@ -231,6 +236,7 @@ class GUI:
             gv.error_Sound()
             sys.exit()
         plt.close('all')
+
         if self.shutterVar.get()==True:
             self.sweep_With_Shutter()
         else:
@@ -244,15 +250,18 @@ class GUI:
 
 
         #take images far off resonance. I don't waste time sweeping the laser here, just pile the values up at the same
-        #voltage.
+        #voltage. This is better than taking one long exposure cause different exposure times seem to have different offsets.
+        # if I took a single long exposure then I would also need to worry about weighing it correctly because it should
+        #count for more than a short exposure.
         self.galvoOut.write(self.voltOffRes)
+        gv.begin_Sound()
         numImagesFarOff=int(self.numImgOffResBox.get())
         for i in range(numImagesFarOff):
-            self.open_Aperture()
+            self.open_Aperture() #open OP shutter
             img=self.camera.aquire_Image()
             signalList1.append(np.mean(img))
 
-            self.close_Aperture()
+            self.close_Aperture() #close OP shutter
             img=self.camera.aquire_Image()
             signalList2.append(np.mean(img))
 
@@ -271,9 +280,10 @@ class GUI:
             signalList2.append(np.mean(img))
 
             voltList.append(volt)
-        gv.finished_Sound()
+
         self.galvoOut.close()
         self.camera.close()
+        gv.finished_Sound()
 
         signalArr1=np.asarray(signalList1)
         signalArr2=np.asarray(signalList2)
@@ -304,25 +314,26 @@ class GUI:
         voltList=[]
         signalList=[]
 
-
-
         #take images far off resonance. I don't waste time sweeping the laser here, just pile the values up at the same
-        #voltage.
+        #voltage. This is better than taking one long exposure cause different exposure times seem to have different offsets.
+        # if I took a single long exposure then I would also need to worry about weighing it correctly because it should
+        #count for more than a short exposure.
         self.galvoOut.write(self.voltOffRes)
+        gv.begin_Sound(noWait=True)
         numImagesFarOff=int(self.numImgOffResBox.get()) #number of images far off resonance
         for i in range(numImagesFarOff):
             img=self.camera.aquire_Image()
             signalList.append(np.mean(img))
             voltList.append(self.voltOffRes)
-
         for volt in self.voltOnResArr:
-            self.galvoOut.write(volt)
+            #self.galvoOut.write(volt)
             voltList.append(volt)
             img=self.camera.aquire_Image()
             signalList.append(np.mean(img))
-        gv.finished_Sound()
-        self.galvoOut.close()
+
         self.camera.close()
+        self.galvoOut.close()
+        gv.finished_Sound(noWait=True)
         voltArr=np.asarray(voltList)
         signalArr=np.asarray(signalList)
 
@@ -349,13 +360,16 @@ class GUI:
         bGuess=np.min(y)
         guess=[x0Guess,aGuess,bGuess,self.sigmaGuess,self.gammaGuess]
         bounds=([-5, 0, 0, 0, 0], [5, 10000, 10000, .1, .1])
-
+        if bGuess>bounds[1][2] or aGuess>bounds[0][1]:
+            print('GUESS VALUES ARE LARGER THAN BOUNDS. SIGNAL STRENGTH IS VERY HIGH')
+            gv.error_Sound()
+            sys.exit()
         params,pcov=spo.curve_fit(self.spectral_Profile,x,y,p0=guess,bounds=bounds)
         perr=np.sqrt(np.diag(pcov))
 
         return params,perr
 
-    def spectral_Profile(self,x,x0,a,b,sigma,gamma): 
+    def spectral_Profile(self,x,x0,a,b,sigma,gamma):
         v0=sps.voigt_profile(0,sigma,gamma)
         v=sps.voigt_profile(x-x0,sigma,gamma)
         return a*(v/v0)+b
@@ -386,6 +400,4 @@ class GUI:
                         self.settingsList[i].set(item)
             i+=1
         file.close()
-
-
 gui=GUI()

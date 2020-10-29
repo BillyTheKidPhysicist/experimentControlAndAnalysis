@@ -211,19 +211,27 @@ class Camera:
         # I don't set the image region because it's a little complicatd with the binning. Instead I just take a full image
         #and format before returning
 
-
-        try: #TODO: WHY DOES THE CAMERAS NAME CHANGE?
-            self.cameraIndex=fli.FLIOpen('flipro0', 'usb', 'camera')
-        except:
+        #for some reason the camera will sporadically change its name in order from 1 to 2 to 3 etc. This is a pain in
+        #the ass when it happens and this attempts to circumvent that behaviour by trying a bunch of names. It stops
+        #when it finds one that works
+        error=False #so error can be used later outside the loop
+        for i in range(1000):
             try:
-                self.cameraIndex=fli.FLIOpen('flipro1', 'usb', 'camera')
+                self.cameraIndex=fli.FLIOpen('flipro'+str(i), 'usb', 'camera')
+                error=False
             except:
-                raise Exception('NO FLI CAMERA CONNECTED, OR INCORRECT FLI CAMERA CONNECTED. READ COMMENTS BELOW IN CODE FOR MORE INFO')
-                #For some reason when trying to get a list of connected FLI cameras and their names if there are none
-                #connected then a silent error occurs and python exits. This does not occur if I do FLIOpen first, but it
-                #depends on me knowing the name of the camera which I think is always 'flipro0' for the first one. This error
-                #will be thrown if that isn't true as well, such as using a different FLI camera, or some other change
-                #in ports or something. Wish it didn't have to be like this but this library is a home made wrapper
+                error=True #if it didn't work then this is true. If the loop gets all the way to the end
+            if error==False:
+                break
+
+        if error==True:
+            raise Exception('NO FLI CAMERA CONNECTED, OR INCORRECT FLI CAMERA CONNECTED. READ COMMENTS BELOW IN CODE FOR MORE INFO')
+            #For some reason when trying to get a list of connected FLI cameras and their names if there are none
+            #connected then a silent error occurs and python exits. This does not occur if I do FLIOpen first, but it
+            #depends on me knowing the name of the camera which I think is always 'flipro0' for the first one. This error
+            #will be thrown if that isn't true as well, such as using a different FLI camera, or some other change
+            #in ports or something. Wish it didn't have to be like this but this library is a home made wrapper
+
         if self.imageParams is None:
             #if no value is provided use the full feild of view
             self.imageParams=[0,1024,0,1024]
@@ -316,3 +324,5 @@ class Camera:
         if self.camName=='NEAR':
             self.cameraObject.stop_acquisition()
             self.cameraObject.close_device()
+        if self.camName=='FAR':
+            fli.FLIClose(self.cameraIndex)

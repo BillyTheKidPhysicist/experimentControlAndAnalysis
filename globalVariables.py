@@ -160,20 +160,22 @@ def error_Sound():
     ws.Beep(1000, 500)
     time.sleep(1) #if there is another noise after this from another error or warning this will prevent them from
             #sounding like one warning/error
-def begin_Sound():
+def begin_Sound(noWait=False):
     ws.Beep(500, 1000)
-    time.sleep(1) #if there is another noise after this from another error or warning this will prevent them from
+    if noWait==False:
+        time.sleep(1) #if there is another noise after this from another error or warning this will prevent them from
             #sounding like one warning/error
-def finished_Sound():
+def finished_Sound(noWait=False):
     ws.Beep(1100, 1000)
-    time.sleep(1) #if there is another noise after this from another error or warning this will prevent them from
+    if noWait==False:
+        time.sleep(1) #if there is another noise after this from another error or warning this will prevent them from
             #sounding like one warning/error
 
 
 def warning_Sound():
     ws.Beep(800, 250)
     ws.Beep(1200, 250)
-    time.sleep(1) #if there is another noise after this from another error or warning this will prevent them from
+    time.sleep(.5) #if there is another noise after this from another error or warning this will prevent them from
             #sounding like one warning/error
 
 
