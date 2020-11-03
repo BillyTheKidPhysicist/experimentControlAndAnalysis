@@ -22,7 +22,6 @@ class GUI:
         self.y1Box=None #tkinter box object for image parameters
         self.y2Box=None #tkinter box object for image parameters
         self.voltOnResArr=None  #array to to hold voltage values to scan over near resonance
-        self.voltOffRes=None #voltage value far off resonance
         self.voltPlotArr=None #array to be used in plotting
         self.camera=None  #to hold the camera opject
         self.galvoOut=None #galvo voltage control
@@ -217,33 +216,34 @@ class GUI:
         self.save_Settings()
         self.window.destroy()
         sys.exit()
+    def initialize_Camera(self):
+        x1=int(self.x1Box.get())  #image region values
+        y1=int(self.y1Box.get())  #image region values
+        x2=int(self.x2Box.get())  #image region values
+        y2=int(self.y2Box.get())  #image region values
+        imageParams=[x1, x2, y1, y2]
+        binSize=int(self.binSizeBox.get())  #binning value
 
-    def run(self):
-        self.save_Settings()
-
+        #initialize camera object. can be near or far field camera
+        expTime=int(self.expTimeBox.get())  #exposure time, ms
+        whichCam=self.cameraVar.get()  #which camera to use, 'FAR' or 'NEAR'
+        self.camera=Camera(whichCam, expTime, imageParams=imageParams, bin=binSize)
+    def close_Camera(self):
+        self.camera.close()
+        self.camera=None
+    def initialize_Scan_And_Plot_Arrays(self):
         v0=float(self.v0Box.get()) #center value of transition from user
         df=float(self.fwhmBox.get()) #fwhm value from user
         offResFact=3 #go this many fwhm away from center for 'far' off resonance background
-        numOnRes=int(self.numImgOnResBox.get()) #number of images to take near the resonance
-        x1=int(self.x1Box.get()) #image region values
-        y1=int(self.y1Box.get()) #image region values
-        x2=int(self.x2Box.get()) #image region values
-        y2=int(self.y2Box.get()) #image region values
-        imageParams=[x1,x2,y1,y2]
-        binSize=int(self.binSizeBox.get()) #binning value
-
-
-        #initialize camera object. can be near or far field camera
-        expTime=int(self.expTimeBox.get()) #exposure time, ms
-        whichCam=self.cameraVar.get() #which camera to use, 'FAR' or 'NEAR'
-        self.camera=Camera(whichCam,expTime , imageParams=imageParams, bin=binSize)
-
-
-        self.voltOffRes=v0-offResFact*df #voltage value to take images at 'far' off resonance
-        self.voltOnResArr=np.linspace(v0-df,v0+df,num=numOnRes) #array of voltages to take images of near the peak
-
+        numImagesOnRes=int(self.numImgOnResBox.get()) #number of images to take near the resonance
+        numImagesOffRes=int(self.numImgOffResBox.get())
+        self.voltOffResArr=np.linspace(v0-offResFact*df/2,v0-offResFact*df/2,num=numImagesOffRes) #voltage value to take images at 'far' off resonance
+        self.voltOnResArr=np.linspace(v0-df,v0+df,num=numImagesOnRes) #array of voltages to take images of near the peak
         self.voltPlotArr=np.linspace(v0-offResFact*df,v0+offResFact*df,num=1000)#voltages to make plot with. This should
             #be dense and uniform so it looks good
+    def run(self):
+        self.save_Settings()
+        self.initialize_Camera()
         if os.path.isdir(self.folderPath.get())==False:
             print('-----ERROR-----------')
             print('YOU HAVE ENTERED AN INVALID FOLDERPATH')
@@ -254,70 +254,52 @@ class GUI:
             sys.exit()
 
         if self.ratioVar.get()==True:
-
-            #for i in range(0,3):
-            #    self.voltOffRes=v0-offResFact*df  #voltage value to take images at 'far' off resonance
-            #    self.voltOnResArr=np.linspace(v0-df, v0+df,
-            #                                  num=numOnRes)  #array of voltages to take images of near the peak
-            #    self.fileName.delete(0,'end')
-            #    self.fileName.insert(0,'run27_x119_'+str(i)+'round2')
-            #    self.sweep_With_Shutter()
-            #gv.finished_Sound()
-            #gv.finished_Sound()
             self.sweep_With_Shutter()
         else:
-            #for i in range(0,3):
-            #    self.voltOffRes=v0-offResFact*df  #voltage value to take images at 'far' off resonance
-            #    self.voltOnResArr=np.linspace(v0-df, v0+df,
-            #                                  num=numOnRes)  #array of voltages to take images of near the peak
-            #    self.fileName.delete(0,'end')
-            #    self.fileName.insert(0,'run16_'+str(i))
-            #    self.sweep_Without_Shutter()
             self.sweep_Without_Shutter()
         self.camera.close()
+
     def sweep_With_Shutter(self):
-        self.galvoOut=DAQPin(gv.galvoOutPin)
+        self.initialize_Scan_And_Plot_Arrays()
+        self.initialize_Camera()
+
         voltList=[] #list to hold voltage values of corresponding images
         signalList1=[] #list for signal values for apeture open
         signalList2=[]  #list for signal values for apeture open
 
 
 
-        #take images far off resonance. I don't waste time sweeping the laser here, just pile the values up at the same
-        #voltage. This is better than taking one long exposure cause different exposure times seem to have different offsets.
-        # if I took a single long exposure then I would also need to worry about weighing it correctly because it should
-        #count for more than a short exposure.
-        self.galvoOut.write(self.voltOffRes)
+
         gv.begin_Sound(noWait=True)#beep without waiting after the beep
-        numImagesFarOff=int(self.numImgOffResBox.get())
-        for i in range(numImagesFarOff):
-            self.open_Aperture() #open OP shutter
+        self.galvoOut=DAQPin(gv.galvoOutPin) #open the galvo control pin
+        #take images 'far' off resonance. This scan is very close to together
+        for volt in self.voltOffResArr:
+            self.galvoOut.write(volt) #move galvo to new position
+            voltList.append(volt)  #record the voltage value
+
+            self.open_Aperture() #'turn on' the optical pumping
             img=self.camera.aquire_Image()
             signalList1.append(np.mean(img))
 
-            self.close_Aperture() #close OP shutter
+            self.close_Aperture() #'turn off' the optical pumping
             img=self.camera.aquire_Image()
             signalList2.append(np.mean(img))
-
-            voltList.append(self.voltOffRes)
-
-
-        #now sweep around the peak
+        #now sweep around the peak near resonance
         for volt in self.voltOnResArr:
-            self.galvoOut.write(volt)
+            self.galvoOut.write(volt) #move galvo to new position
+            voltList.append(volt) #record the voltage value
 
-            self.open_Aperture()
-            img=self.camera.aquire_Image()
-            signalList1.append(np.mean(img))
+            self.open_Aperture() #'turn on' the optical pumping
+            img=self.camera.aquire_Image() #capture an image
+            signalList1.append(np.mean(img)) #add the average of the pixels
 
-            self.close_Aperture()
-            img=self.camera.aquire_Image()
-            signalList2.append(np.mean(img))
+            self.close_Aperture() #'turn off' the optical pumping
+            img=self.camera.aquire_Image()#capture an image
+            signalList2.append(np.mean(img))#add the average of the pixels
 
-            voltList.append(volt)
 
-        self.galvoOut.close()
-        self.open_Aperture() #open the shutter up again
+        self.galvoOut.close() #close and zero the pin
+        self.open_Aperture() #open the shutter up again when done
         gv.finished_Sound(noWait=True) #beep without waiting after the beep
 
         #convert lists to arrays
@@ -357,29 +339,31 @@ class GUI:
         if self.showPlotVar.get()==True:
             plt.show()
     def sweep_Without_Shutter(self):
-        self.galvoOut=DAQPin(gv.galvoOutPin)
+        self.initialize_Scan_And_Plot_Arrays()
+        self.initialize_Camera()
+
         voltList=[]
         signalList=[]
 
-        #take images far off resonance. I don't waste time sweeping the laser here, just pile the values up at the same
-        #voltage. This is better than taking one long exposure cause different exposure times seem to have different offsets.
-        # if I took a single long exposure then I would also need to worry about weighing it correctly because it should
-        #count for more than a short exposure.
-        self.galvoOut.write(self.voltOffRes)
-        gv.begin_Sound(noWait=True)#beep without waiting after the beep
-        numImagesFarOff=int(self.numImgOffResBox.get()) #number of images far off resonance
-        for i in range(numImagesFarOff):
-            img=self.camera.aquire_Image()
-            signalList.append(np.mean(img))
-            voltList.append(self.voltOffRes)
-        for volt in self.voltOnResArr:
-            self.galvoOut.write(volt)
-            voltList.append(volt)
-            img=self.camera.aquire_Image()
-            signalList.append(np.mean(img))
 
-        self.galvoOut.close()
-        self.open_Aperture()
+        gv.begin_Sound(noWait=True)#beep without waiting after the beep
+        self.galvoOut=DAQPin(gv.galvoOutPin)
+        #take images 'far' off resonance. This scan is very close to together
+        for volt in self.voltOffResArr:
+            self.galvoOut.write(volt) #move the galvo to a new voltage value
+            voltList.append(volt) #record the voltage
+            img=self.camera.aquire_Image() #capture image
+            signalList.append(np.mean(img)) #add the average of the image's pixels
+
+
+        for volt in self.voltOnResArr:
+            self.galvoOut.write(volt) #move the galvo to a new voltage value
+            voltList.append(volt) #record the voltage
+            img=self.camera.aquire_Image() #capture image
+            signalList.append(np.mean(img)) #add the average of the image's pixels
+        self.galvoOut.close() #close and zero the galvo
+        self.camera.close()
+        self.open_Aperture() #open the apeture up when done
         gv.finished_Sound(noWait=True)#beep without waiting after the beep
         voltArr=np.asarray(voltList)
         signalArr=np.asarray(signalList)

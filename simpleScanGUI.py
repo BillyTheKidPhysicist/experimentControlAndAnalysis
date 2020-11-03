@@ -194,7 +194,6 @@ class GUI:
             gv.error_Sound()
             sys.exit()
 
-
         plt.close('all')
         if self.ratioVar.get()==True:
             self.sweep_Ratio()
@@ -211,10 +210,6 @@ class GUI:
     def sweep_Ratio(self):
         gv.begin_Sound()
         self.galvoOut.write(self.voltArr[0])
-        #self.open_Aperture()
-        #darkImage1=self.take_Dark_Image_Average() #dark image shutter open
-        #self.close_Aperture()
-        #darkImage2=self.take_Dark_Image_Average() #dark image shutter closed
 
         image1MeanList=[] #shutter open list of image sums
         image2MeanList=[] #shutter closed list of image sums

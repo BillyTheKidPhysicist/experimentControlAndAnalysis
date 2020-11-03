@@ -240,6 +240,7 @@ class Camera:
         currentTemp=fli.readTemperature(self.cameraIndex, 'internal')
         print('Opened FLI Camera . Current temperature is '+str(currentTemp)+' Celcius.')
         if currentTemp>self.temp+.5:
+            gv.warning_Sound(noWait=True)
             print('Current temperature is above target temperatute of '+str(self.temp)+' Celcius. Initiating cooling.')
             print('It takes about 5 minutes to cool from 20 celcius to -20 celcius')
             fli.setTemperature(self.cameraIndex, self.temp)
