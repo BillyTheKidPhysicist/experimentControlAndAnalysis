@@ -108,10 +108,10 @@ class GUI:
         saveDataCheckButton.grid(column=1, row=7)
         self.settingsList.append(self.saveDataVar)
 
-        self.shutterVar=tk.BooleanVar()
-        shutterVarButton=tk.Checkbutton(self.window, text='shutter', variable=self.shutterVar)
-        shutterVarButton.grid(column=1, row=8)
-        self.settingsList.append(self.shutterVar)
+        self.ratioVar=tk.BooleanVar()
+        ratioVarButton=tk.Checkbutton(self.window, text='ratio', variable=self.ratioVar)
+        ratioVarButton.grid(column=1, row=8)
+        self.settingsList.append(self.ratioVar)
 
         self.showPlotVar=tk.BooleanVar()
         showDataAnalysiButton=tk.Checkbutton(self.window, text='Show plot',
@@ -172,6 +172,7 @@ class GUI:
         self.save_Settings()
         self.galvoOut=DAQPin(gv.galvoOutPin)
         self.shutterOut=DAQPin(gv.shutterPin)
+
         self.galvoOut.write(float(self.voltStartBox.get()))
         x1=int(self.x1Box.get())
         y1=int(self.y1Box.get())
@@ -195,10 +196,10 @@ class GUI:
 
 
         plt.close('all')
-        if self.shutterVar.get()==True:
-            self.sweep_With_shutter()
+        if self.ratioVar.get()==True:
+            self.sweep_Ratio()
         else:
-            self.sweep_Without_shutter()
+            self.sweep_Single()
 
     def take_Dark_Image_Average(self, num=3):
         image=self.camera.aquire_Image()
@@ -207,7 +208,7 @@ class GUI:
         image=image/num  #average the three images
         return image
 
-    def sweep_With_shutter(self):
+    def sweep_Ratio(self):
         gv.begin_Sound()
         self.galvoOut.write(self.voltArr[0])
         #self.open_Aperture()
@@ -279,13 +280,13 @@ class GUI:
 
         if self.showPlotVar.get()==True:
             plt.show()
-    def sweep_Without_shutter(self):
+    def sweep_Single(self):
+        #self.close_Aperture()
+
 
         gv.begin_Sound()
         self.galvoOut.write(self.voltArr[0])
         darkImage=self.take_Dark_Image_Average()
-        print('here')
-
         imageMeanList=[]
         imageList=[]
         for volt in self.voltArr:

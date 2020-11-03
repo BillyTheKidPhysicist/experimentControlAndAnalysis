@@ -11,11 +11,11 @@ FAR
 1000
 4
 16
-250
--1.9
-.1
-C:\Data\Runs\10_26_20
-run3
+50
+.45
+1.45
+C:\Data\Runs\10_29_20\fullSweeps
+run1
 100
 FAR
 0
