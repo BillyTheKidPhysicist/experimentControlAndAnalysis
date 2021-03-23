@@ -7,8 +7,7 @@ transversePlot.py
 notebook.ipynb
 run1/
 run2/
-x
-y
+phaseSpacePlots/
 transversePlot2.py
 farFieldScan.py
 nearFieldScan.py

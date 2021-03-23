@@ -9,11 +9,11 @@ import globalVariables as gv
 import matplotlib.pyplot as plt
 
 class Analyzer:
-    def __init__(self,imagesSumArr,imageFreqMHzArr,S):
+    def __init__(self,imagesMeanArr,imageFreqMHzArr,S):
         #imagesSumArr: array where each entry is the sum of the pixels in that image over a region
         #imageFreqMHzArr: MHz values that correspond to images in imagesSumArr
         #S: I/I_sat. saturation constant
-        self.imagesSumArr=imagesSumArr
+        self.imagesMeanArr=imagesMeanArr
         self.imageFreqMHzArr=imageFreqMHzArr
         self.S=S
         self.fitFunc=None #A function that returns the spectral profile of the fit
@@ -80,14 +80,14 @@ class Analyzer:
         #bG: center frequency
         #cG: vertical offset
         #dFG: FWHM of doppler broadening
-        aG=np.max(self.imagesSumArr)-np.min(self.imagesSumArr)    #height constant
-        bG=self.imageFreqMHzArr[np.argmax(self.imagesSumArr)]  #x axis offset
-        cG=np.average(self.imagesSumArr[-int(self.imagesSumArr.shape[0]/10.0):]) #Set the y axisoffsest guess based on the 
+        aG=np.max(self.imagesMeanArr)-np.min(self.imagesMeanArr)    #height constant
+        bG=self.imageFreqMHzArr[np.argmax(self.imagesMeanArr)]  #x axis offset
+        cG=np.average(self.imagesMeanArr[-int(self.imagesMeanArr.shape[0]/10.0):]) #Set the y axisoffsest guess based on the
                     # average of the last 10% of data
         dFG=20  #good guess for FWHM of gaussian
 
-        y1=np.mean(self.imagesSumArr[:5]) #take average of first few data points
-        y2=np.mean(self.imagesSumArr[-5:]) #take the average of the last few data points
+        y1=np.mean(self.imagesMeanArr[:5]) #take average of first few data points
+        y2=np.mean(self.imagesMeanArr[-5:]) #take the average of the last few data points
         x1=np.mean(self.imageFreqMHzArr[:5])
         x2=np.mean(self.imageFreqMHzArr[-5:])
         tiltmG=(y2-y1)/(x2-x1)
@@ -95,14 +95,9 @@ class Analyzer:
 
         guess = np.array([aG    ,bG            , cG*1.0, dFG ,tiltmG]) #array of guess
 
-        PF, pcov = spo.curve_fit(self.spectral_Profile_Wrapper, self.imageFreqMHzArr, self.imagesSumArr, p0=guess)
+        PF, pcov = spo.curve_fit(self.spectral_Profile_Wrapper, self.imageFreqMHzArr, self.imagesMeanArr, p0=guess)
         time.sleep(.1)
         perr=np.sqrt(np.diag(pcov))
-        print(PF)
-        print(perr)
-
-
-
         self.F0=self.find_Voigt_Peak(self.imageFreqMHzArr,PF)
         dF=PF[3] #FWHM of spectral profile
 
@@ -110,13 +105,7 @@ class Analyzer:
             #freq: HHz
             return self.spectral_Profile_Wrapper(freq, *PF)
         self.fitFunc=temp
-        print(dF)
         self.T=self.calculateTemp(dF)
-        print(self.T*1E3)
-        plt.scatter(self.imageFreqMHzArr, self.imagesSumArr, c='red',marker='x')
-        x=np.linspace(self.imageFreqMHzArr[0],self.imageFreqMHzArr[-1],num=1000)
-        plt.plot(x, self.spectral_Profile_Wrapper(x, *PF))
-        plt.show()
         
 
 
@@ -185,12 +174,12 @@ class Analyzer:
         #need to include better interaction with the plot! doesn't work as expected when accessed from mainGUI
 
 
-        smooth=spsi.savgol_filter(self.imagesSumArr,21,5)
+        smooth=spsi.savgol_filter(self.imagesMeanArr, 21, 5)
         minHeight=(np.max(smooth)-np.min(smooth))/2.0 +np.min(smooth)
         peak=spsi.find_peaks(smooth,height=minHeight)[0][0]
 
         x=np.flip(self.imageFreqMHzArr[peak-offset:])
-        y=np.flip(self.imagesSumArr[peak-offset:])
+        y=np.flip(self.imagesMeanArr[peak-offset:])
         #newPeak=184
         error=np.ones(x.shape[0])
 

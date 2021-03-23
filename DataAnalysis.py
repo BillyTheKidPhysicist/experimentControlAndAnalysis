@@ -80,13 +80,16 @@ def fitPixelData(MHzScale,pixelValue):
     guess = np.array([aG    ,bG            , cG*1.0, dF0G ]) #array of guess
 
 
-
-    PF, pcov = spo.curve_fit(spectralProfile, MHzScale, pixelValue, p0=guess,sigma=error)
+    bounds=(0,np.inf)
+    PF, pcov = spo.curve_fit(spectralProfile, MHzScale, pixelValue, p0=guess,sigma=error,bounds=bounds)
     stdDev = np.sqrt(np.diag(pcov)) #calculate standard deviation of each variable
     F0=find_Voigt_Peak(MHzScale,PF)
 
 
-
+    # xTest=np.linspace(MHzScale[0], MHzScale[-1], num=10000)
+    # plt.plot(MHzScale,pixelValue)
+    # plt.plot(xTest,spectralProfile(xTest,*PF))
+    # plt.show()
 
     return PF#,F0
 
@@ -123,7 +126,6 @@ def spectralProfile(freq,a,b,c,dF0,gamma=gv.LiTau/1E6):
     #c: vertical offset
     #dF0: FWHM of doppler broadening
     #gamma: FWHM of lorentzian
-
     ratio=4*(1/.55)#ratio of intensity of f=2 to f=1. First number is power ratio in bands. Second fraction is ratio
                 #of hyperfine transitions
     a2=ratio*a
@@ -143,7 +145,7 @@ def spectralProfile(freq,a,b,c,dF0,gamma=gv.LiTau/1E6):
     return val
 
 def calculateTemp(dF0,f0=gv.Li_D2_Freq,MHz=True):
-    #calculate the temperatute in mk for a given doppler width at a given frequency F0
+    #calculate the temperatute in mk for a given doppler FWHM width at a given frequency F0
     if MHz==True:
         dF0=dF0*1E6
 

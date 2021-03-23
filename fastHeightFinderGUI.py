@@ -234,12 +234,12 @@ class GUI:
     def initialize_Scan_And_Plot_Arrays(self):
         v0=float(self.v0Box.get()) #center value of transition from user
         df=float(self.fwhmBox.get()) #fwhm value from user
-        offResFact=3 #go this many fwhm away from center for 'far' off resonance background
+        offResFact=4 #go this many fwhm away from center for 'far' off resonance background
         numImagesOnRes=int(self.numImgOnResBox.get()) #number of images to take near the resonance
         numImagesOffRes=int(self.numImgOffResBox.get())
-        self.voltOffResArr=np.linspace(v0-offResFact*df/2,v0-offResFact*df/2,num=numImagesOffRes) #voltage value to take images at 'far' off resonance
-        self.voltOnResArr=np.linspace(v0-df,v0+df,num=numImagesOnRes) #array of voltages to take images of near the peak
-        self.voltPlotArr=np.linspace(v0-offResFact*df,v0+offResFact*df,num=1000)#voltages to make plot with. This should
+        self.voltOffResArr=np.linspace(v0-offResFact*df-df/2,v0-offResFact*df+df/2,num=numImagesOffRes) #voltage value to take images at 'far' off resonance
+        self.voltOnResArr=np.linspace(v0-1.5*df,v0+1.5*df,num=numImagesOnRes) #array of voltages to take images of near the peak
+        self.voltPlotArr=np.linspace(v0-(offResFact+1)*df,v0+(offResFact+1)*df,num=1000)#voltages to make plot with. This should
             #be dense and uniform so it looks good
     def run(self):
         self.save_Settings()
@@ -274,6 +274,7 @@ class GUI:
         self.galvoOut=DAQPin(gv.galvoOutPin) #open the galvo control pin
         #take images 'far' off resonance. This scan is very close to together
         for volt in self.voltOffResArr:
+            print(volt)
             self.galvoOut.write(volt) #move galvo to new position
             voltList.append(volt)  #record the voltage value
 
@@ -357,9 +358,11 @@ class GUI:
 
 
         for volt in self.voltOnResArr:
+            print(volt)
             self.galvoOut.write(volt) #move the galvo to a new voltage value
             voltList.append(volt) #record the voltage
             img=self.camera.aquire_Image() #capture image
+            print(np.mean(img))
             signalList.append(np.mean(img)) #add the average of the image's pixels
         self.galvoOut.close() #close and zero the galvo
         self.camera.close()
@@ -369,6 +372,7 @@ class GUI:
         signalArr=np.asarray(signalList)
 
         params,perr=self.fit_Data(voltArr,signalArr)
+        print(params)
 
         plt.close('all')
         plt.plot(self.voltPlotArr, self.spectral_Profile(self.voltPlotArr,*params), c='orange', label='fit')
@@ -391,18 +395,23 @@ class GUI:
         if self.showPlotVar.get()==True:
             plt.show()
     def fit_Data(self,x,y):
+        print('here')
         #fit the data to get the optimal parameters
         x0Guess=float(self.v0Box.get())
         aGuess=np.max(y)-np.min(y)
         bGuess=np.min(y)
         guess=[x0Guess,aGuess,bGuess,self.sigmaGuess,self.gammaGuess]
-        print(guess)
         bounds=([-5, 0, 0, 0, 0], [5, 100000, 100000, .1, .1])
         if bGuess>bounds[1][2] or aGuess>bounds[1][1]:
             print('GUESS VALUES ARE LARGER THAN BOUNDS. SIGNAL STRENGTH IS VERY HIGH')
             gv.error_Sound()
             sys.exit()
-        params,pcov=spo.curve_fit(self.spectral_Profile,x,y,p0=guess,bounds=bounds)
+        try:
+            params,pcov=spo.curve_fit(self.spectral_Profile,x,y,p0=guess,bounds=bounds)
+        except:
+            print('FIT FAILED')
+            plt.plot(x,y)
+            plt.show()
         perr=np.sqrt(np.diag(pcov))
 
         return params,perr

@@ -301,7 +301,7 @@ class GUI:
         delta=np.max(imageSumArr)-np.mean((imageSumArr[:numImages]+imageSumArr[-numImages:])/2)
 
         plt.plot(self.voltArr, imageSumArr)
-        plt.title('Peak minus first value= '+str(np.round(delta,2)))
+        plt.title('Peak minus first few values= '+str(np.round(delta,2)))
         plt.xlabel('Volts')
         plt.ylabel('Pixel counts')
         plt.grid()
@@ -352,6 +352,8 @@ class GUI:
 
 
 gui=GUI()
+
+
 #if os.path.isdir(folderPath) == False:
 #    print('-----ERROR-----------')
 #    print('YOU HAVE ENTERED AN INVALID FOLDERPATH')

@@ -20,8 +20,8 @@ class Sweeper:
         self.lithiumRefIn=DAQPin(gv.lithiumRefInPin)
 
 
-        self.minVolt=-4
-        self.maxVolt=4
+        self.minVolt=gv.minScanVal
+        self.maxVolt=gv.maxScanVal
         self.DAQVoltArr=np.linspace(self.minVolt,self.maxVolt,num=int((self.maxVolt-self.minVolt)*gv.samplesPerVoltDAQ))
 
 

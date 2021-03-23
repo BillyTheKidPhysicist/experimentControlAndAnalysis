@@ -96,6 +96,9 @@ class DAQPin:
         self.thread.start()
 
     def read(self,numSamples=1,average=True,error=False):
+        #numsamples: number of samples for DAQboard to read in
+        #average: wether to return the average value of samples read in rather than the samples
+        #error: Return the standard error of the samples instead of the samples
         if numSamples==1:
             return self.daqChannel.read()
         if numSamples>1:
@@ -117,9 +120,8 @@ class DAQPin:
         #write a logical low value, ie 0 volts
         self.daqChannel.write(False)
     def write(self,value,sweep=False):
+        #value: voltage value to write to the galvo
         if sweep==True or self.pinName==gv.galvoOutPin: #if writing to laser, you need to go in steps to avoid losing lock
-            #self.daqChannel.write(value)
-            #time.sleep(.01)
             if np.abs(value-self.currentVolt) < 1.0/gv.stepsPerVoltGalvo: #if value is very close to target, dont bother sloping
                 self.daqChannel.write(value)
                 self.currentVolt=value  # remembering what the output voltage is

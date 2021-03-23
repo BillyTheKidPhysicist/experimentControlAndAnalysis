@@ -26,6 +26,8 @@ class ExperimentGUI:
             #where each image is a numpy array. So first image in each pair is for near, second for far
         self.settingsList=[] #to store the variables whos values will be saved so that the gui won't be opened
             #with all the boxes empty!
+        self.MKSFullScale=500.0 #full scale of N2, sccm
+        self.scaleFact=1.4 #scael factor for He
         self.window = tk.Tk()
         self.window.title("aquisition and analysis")
         self.window.geometry('800x600')
@@ -233,8 +235,8 @@ class ExperimentGUI:
         #----------------row 21------------
         self.cameraVarAnl=tk.StringVar(self.window)
         self.settingsList.append(self.cameraVarAnl)
-        self.cameraVarAnl.set("NEAR")
-        cameraChoiceAnl=["NEAR", "FAR"]
+        self.cameraVarAnl.set("Near")
+        cameraChoiceAnl=["Near", "Far"]
         CAMERA_MENU_Anl=tk.OptionMenu(self.window, self.cameraVarAnl, *cameraChoiceAnl)
         CAMERA_MENU_Anl.grid(column=0, row=21, columnspan=1)
 
@@ -341,13 +343,23 @@ class ExperimentGUI:
         self.window.after(500, self.update_Flow_Rate)
         self.flowRateDisplayVar.set(str(self.get_Flow()))
 
+    def make_Flow(self):
+        flowOut=DAQPin(gv.flowOutPin)
+        flowDesired=float(self.flowRateBox.get())
+        if flowDesired>500.0:
+            raise Exception('REQUESTED FLOW IS GREATER THAN MAXIMUM')
+        elif flowDesired>0.0:
+            volt=(flowDesired/(self.MKSFullScale*self.scaleFact))*5.0
+            flowOut.write(volt)
+        else:
+            flowOut.write(0.0)
+        flowOut.close(zero=False)
     def get_Flow(self):
         flowIn=DAQPin(gv.flowInPin)
-        b=4.29
-        m=1.4236
         volt=flowIn.read()
         flowIn.close()
-        return b+2000.0*(volt/5.0)*m
+        flow=(volt/5.0)*self.MKSFullScale*self.scaleFact #sccm
+        return "Data Not Available"
     def close_GUI(self):
         self.save_Settings()
         #flowOut = DAQPin(gv.flowOutPin)  # want to make sure that flowrate is zero when program closes
@@ -493,49 +505,30 @@ class ExperimentGUI:
         imagesArr=imagesArr[:,y1N:y2N,x1:x2] #images is a 3 dimensional array where the first dimension is the images
             #the second is the rows (the y) and the third is the column (the x). Zero is the top left, not the bottom
             # right. It makes cropping a little tricky
-        imagesSumArr=np.sum(np.sum(imagesArr, axis=2),axis=1) #sum along one axis and then the other. The result is an array where
+        imagesMeanArr=np.mean(np.mean(imagesArr, axis=2),axis=1) #sum along one axis and then the other. The result is an array where
             #each entry is the sum of all the pixels in that image.
         DAQData=np.loadtxt(folderPath+'\\'+fileName+'DAQData.csv',self.DAQDataArr,delimiter=',')
-        MHzScaleArr=MakeMHzScale.make_MHz_Scale(DAQData)
-        #MHzScaleArr=np.linspace(0,5000,num=DAQData.shape[0])
+        MHzScaleArr,liRefFitFunc=MakeMHzScale.make_MHz_Scale(DAQData,returnFitFunc=True)
+
+        #make MHZ array corresponding to images
         galvoVoltArr=DAQData[:,0]
-        liRefVoltArr=DAQData[:,1]
         P=np.polyfit(galvoVoltArr,MHzScaleArr, 1)
-        temp=np.linspace(startVolt,stopVolt,num=imagesSumArr.shape[0])
+        temp=np.linspace(startVolt,stopVolt,num=imagesMeanArr.shape[0])
         imageFreqMhzArr=P[1]+P[0]*temp
 
 
-        #x1=MHzScaleArr
-        #x2=imageFreqMhzArr
-
-        #y1=liRefVoltArr
-        #y1=-y1
-        #y1=y1-np.min(y1)
-        #y1=y1/np.max(y1)
-        #y2=imagesSumArr
-        #y2=y2-np.min(y2)
-        #y2=y2/np.max(y2)
-        #plt.plot(x1,y1)
-        #plt.plot(x2,y2)
-        #plt.show()
-
         S=float(self.saturationConstantBox.get()) #saturation constant, I/I_sat
-        analyzer=Analyzer(imagesSumArr,imageFreqMhzArr,S)
+        analyzer=Analyzer(imagesMeanArr,imageFreqMhzArr,S)
         analyzer.fit_Image_Data()
 
-        #print(analyzer.T)
-#
-#
-        #self._Make_And_Save_Spectral_Fit_Plot(analyzer, DAQData)
-        #plt.plot(imageFreqMhzArr,images)
-        #plt.plot(imageFreqMhzArr,analyzer.fitFunc(imageFreqMhzArr))
-        #plt.show()
-    def _Make_And_Save_Spectral_Fit_Plot(self, analyzer, DAQData):
+        self._Make_And_Save_Spectral_Fit_Plot(analyzer, DAQData,liRefFitFunc)
+    def _Make_And_Save_Spectral_Fit_Plot(self, analyzer, DAQData,liRefFitFunc):
         fileName=self.anlFileNameBox.get()
         folderPath=self.anlFolderPathBox.get()
         galvoVoltArr=DAQData[:,0]
         liRefVoltArr=DAQData[:,1]
         plt.close('all')
+
 
 
         #now find the FWHM
@@ -554,105 +547,28 @@ class ExperimentGUI:
 
 
 
-
-
         x1=analyzer.imageFreqMHzArr
-        y1=analyzer.imageAvgArr
-        x1=np.linspace(x1[0],x1 [0],num)
-        y2=analyzer.fitFunc(x) #the previously generated fit
+        y1=analyzer.imagesMeanArr
+        y2=liRefFitFunc(x1)
 
-        plt.figure( figsize=(10, 7))
-
-        titleString="Temperature~ "+str(np.round(analyzer.T*1000))+' mk (dubious) '#+' FWHM: '+str(fwhm)+' mhz|'
-        #titleString+='\n'+'Atom velocity: '+str(np.round(velocity, 1))+'m/s |'
-        #titleString+=' signal size: '+str(sigSize)+' au | center frequency: '+str(np.round(F0, 1))+' mhz |'
-        #titleString+='\n'+'region (x,y):'+str(region)+' | '+"Mhz per galvo volt= "+str(int(scale))+' |'+'\n'
-        #titleString+=' created:'+str(datetime.date.today())
-
-        plt.title(titleString)
-
-
-
-        plt.ylabel("pixel value")
-        plt.xlabel("MHz relative to F=2 transition")
-
-        plt.plot(x,y1,label='Data')
-        plt.plot(x,y2,label='Fit')
-        plt.legend()
-        plt.grid()
-        #plt.savefig(folderPath+'\\'+fileName+self.cameraVarAnl.get())
-
+        atomVelocity=gv.cLight*1e6*analyzer.F0/gv.Li_D2_Freq
+        fig, ax1=plt.subplots(constrained_layout=True)
+        plt.suptitle('Signal vs Frequency with reference cell')
+        plt.title('Atom Velocity = '+str(int(np.abs(atomVelocity)))+ 'm/s')
+        plt.xlabel('Frequency, MHz')
+        ax1.plot(x1,y1,c='r',label='data')
+        ax2=ax1.twinx()
+        ax2.plot(x1,y2,c='orange',linestyle=':',label='ref cell fit')
+        ax1.axvline(x=0,c='black',linestyle=':')
+        ax1.axvline(x=analyzer.F0, c='black', linestyle=':')
+        ax1.legend()
+        ax2.legend()
+        ax1.set_ylabel('Camera Signal, au')
+        ax2.set_ylabel('Ref Cell Signal, au')
+        ax1.grid()
+        plt.savefig(folderPath+'\\'+fileName+self.cameraVarAnl.get())
         plt.show()
 
-
-
-        #temp=round(1000*analyzer.T)
-        #liRefForPlot=DAQData[:,1]
-        ##create array of lithium PMT referance voltages to include with plot
-        #liRefForPlot=liRefVoltage[start:stop+1]  #trim to only the value we care about
-        #liRefForPlot=-liRefForPlot  #flip it cause it's negative
-        #valueAdjust=(pixelValue.max()-pixelValue.min())/(liRefForPlot.max()-liRefForPlot.min())
-        #liRefForPlot=.5*liRefForPlot*valueAdjust  #normalize to samae height as pixel value
-        #liRefForPlot+=pixelValue.min()  #set the offset correctly
-#
-        #refFitForPlot=-refFit[start:stop+1]
-        #refFitForPlot=.5*refFitForPlot*valueAdjust
-        #refFitForPlot+=pixelValue.min()
-#
-        #analysisPlot=plt.figure(num=2, figsize=(10, 7))
-        #plt.locator_params(nbins=20)
-        #max=pixelValue.max()
-        #ypos=(max-pixelValue.min())*.01+max
-        #plt.axhline(y=max, color='black', linestyle='--')
-        #plt.text(MHzScale[start], ypos, str(int(max)))
-        #plt.axvline(x=F0, color='black', linestyle=':')  #centered on signal peak
-        #plt.axvline(x=zeroPoint, color='black', linestyle=':', ymax=.5)  #centered on reference cell zero point
-        #plt.plot(MHzScale[start:stop+1], pixelValue, label="pixel value")
-        ##make high res fit
-        #x=np.linspace(MHzScale[start], MHzScale[stop], num=10000)
-        #y=dataAnalysis.spectralProfile(x, *PF)
-        #plt.plot(x, y, label="fit")
-        #plt.plot(MHzScale[start:stop+1], liRefForPlot, color='r', label="reference (AU)", alpha=.5)
-        #plt.plot(MHzScale[start:stop+1], refFitForPlot, '--', color='g', label="reference fit", alpha=.5)
-        #plt.xlabel("MHz relative to F=2 transition")
-#
-        #plt.ylabel("pixel value")
-        #velocity=np.abs(gv.cLight*F0/(gv.Li_D2_Freq/1E6))
-#
-        #fitFunc=spi.interp1d(MHzScale[start:stop+1], pixelValue)  #to find fwhm
-        #xNew=np.linspace(MHzScale[start], MHzScale[stop], 10000)
-        #yNew=fitFunc(xNew)
-        #yNew=yNew-np.average(yNew[:20])
-        #yNew=-np.abs(yNew-(yNew.max()-yNew.min())/2)+(yNew.max()-yNew.min())*.01
-        #peaks=sps.find_peaks(yNew, height=0)[0]
-#
-        #if peaks.shape[0]!=2:
-        #    print("error! more than two peaks found during search for fwhm")
-        #    plt.close()
-        #    plt.plot(xNew, yNew)
-        #    plt.show()
-        #    sys.exit()
-        #fwhm=np.round(np.abs(xNew[peaks[0]]-xNew[peaks[1]]), 1)
-#
-        #round_to_n=lambda x, n:round(x, -int(math.floor(math.log10(x)))+(n-1))
-        #sigSize=round_to_n(pixelValue.max()-np.average(pixelValue[:10]), 3)
-        #titleString=fitsFilePath+'\n'
-        #titleString+="Temperature~ "+str(temp)+' mk (dubious) |'+' FWHM: '+str(fwhm)+' mhz|'
-        #titleString+='\n'+'Atom velocity: '+str(np.round(velocity, 1))+'m/s |'
-        #titleString+=' signal size: '+str(sigSize)+' au | center frequency: '+str(np.round(F0, 1))+' mhz |'
-        #titleString+='\n'+'region (x,y):'+str(region)+' | '+"Mhz per galvo volt= "+str(int(scale))+' |'+'\n'
-        #titleString+=' created:'+str(datetime.date.today())
-        #if cheatVar.get()==1:
-        #    titleString+="cheat method"
-        #plt.title(titleString)
-        #plt.tight_layout()
-        #plotFileName=plotFilePath+"("+str(X1Anl_BOX.get())+','+str(X2Anl_BOX.get())+")"
-        #plotFileName+="("+str(Y1Anl_BOX.get())+','+str(Y2Anl_BOX.get())+")"
-        #plotFileName+=".png"
-        #plt.grid()
-        #plt.legend()
-        #plt.savefig(plotFileName)
-        #analysisPlot.show()
 
     def aquire_Data(self):
         self.catch_Errors_Aquisition()
@@ -665,9 +581,9 @@ class ExperimentGUI:
         #self.make_Lithium_Ref_Plot()
 
         #turn off the helium flow when done
-        flowOut=DAQPin(gv.flowOutPin)
-        flowOut.write(0)
-        flowOut.close()
+        #flowOut=DAQPin(gv.flowOutPin)
+        #flowOut.write(0)
+        #flowOut.close()
     def make_Lithium_Ref_Plot(self):
         fileName=self.dataFileNameBox.get()
         folderPath=self.dataFolderPathBox.get()
@@ -731,18 +647,9 @@ class ExperimentGUI:
             hdul.writeto(folderPath+'\\'+fileName+'Far.fits')
         print('images saved to fits files')
 
-    def make_Flow(self):
-        b=4.29
-        m=1.4236
-        flowOut=DAQPin(gv.flowOutPin)
-        flowDesired=float(self.flowRateBox.get())
-        if flowDesired>0.0:
-            flowOut.write((5.0/2000)*(flowDesired-b)/m)
-        else:
-            flowOut.write(0.0)
-        flowOut.close(zero=False)
     def Li_Reference_Check(self):
         plt.close('all')
+
         voltArr=np.linspace(gv.minScanVal,gv.maxScanVal,num=250)
         temp=[]
         galvoOut=DAQPin(gv.galvoOutPin)

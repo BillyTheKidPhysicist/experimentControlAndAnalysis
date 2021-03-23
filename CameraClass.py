@@ -104,6 +104,8 @@ class Camera:
             binError=True
         if self.bin is None and (self.binx is None or self.biny is None):
             binError=True
+        if self.bin==0 or self.binx==0 or self.biny==0:
+            raise Exception("NONE OF THE BIN VALUES CAN BE 0")
         if binError==True:
             print('------------ERROR-------------')
             print('YOU HAVE SET A DISALLOWED BIN CONFIGURATION')
@@ -115,6 +117,7 @@ class Camera:
             self.binx=1
             self.biny=1
         if self.bin is not None:
+
             self.binx=self.bin
             self.biny=self.bin
 
@@ -326,4 +329,5 @@ class Camera:
             self.cameraObject.stop_acquisition()
             self.cameraObject.close_device()
         if self.camName=='FAR':
-            fli.FLIClose(self.cameraIndex)
+            #fli.FLIClose(self.cameraIndex)
+            pass
