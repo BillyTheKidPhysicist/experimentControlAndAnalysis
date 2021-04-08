@@ -113,7 +113,7 @@ stepsPerVoltGalvo=25 #number of steps per volt when taking the laser to or from 
     #class to prevent the galvo from sweeping too fast
 samplesPerVoltDAQ=100 #Number of DAQ readings per scanned volt. This is independent of image aquisition, but at every
     #image aquisition an additional point is collected as well.
-
+typicalMHzPerVolt=565.0 #typical MhZ per volt of laser
 #-----TYPICAL MHZ/VOLT OF GALVO IS 565--------
 #----------
 

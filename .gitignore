@@ -11,3 +11,4 @@ phaseSpacePlots/
 transversePlot2.py
 farFieldScan.py
 nearFieldScan.py
+DataResults.py

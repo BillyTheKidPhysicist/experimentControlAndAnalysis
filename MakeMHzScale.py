@@ -19,6 +19,16 @@ class MHzScale:
         #assumes the frequency versus voltage curve is straight
         peak1VoltMean, peak2VoltMean,fitFuncVolt=self.find_Peaks()
         MHzPerVolt=(gv.Li_2S_F2_F1_Sep/1E6)/(peak2VoltMean-peak1VoltMean)
+        if not gv.typicalMHzPerVolt*.95<MHzPerVolt<1.05*gv.typicalMHzPerVolt: #if the scale seems suspicous
+            gv.warning_Sound(noWait=True)
+            print('------------WARNING----------------')
+            print("The MHz per volt is out of the expected range.")
+            print("Typical value is "
+                          +str(int(gv.typicalMHzPerVolt))
+                          +'. \nCurrent value is '+str(int(MHzPerVolt))+'.')
+            print('Its possible nothing is wrong')
+            print('It is not known what the \'expected\' range is at this moment')
+            print('---------END WARNING---------------')
         self.galvoVolt=self.DAQData[:,0]
         MHzScaleArr=(self.galvoVolt-peak1VoltMean)*MHzPerVolt
         fitFunc= lambda x: fitFuncVolt((x/MHzPerVolt+peak1VoltMean)) #convert voltage to frequency for fit func

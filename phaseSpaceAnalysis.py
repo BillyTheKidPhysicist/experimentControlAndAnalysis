@@ -21,9 +21,9 @@ def calculateTemp(dF0,f0=gv.Li_D2_Freq,MHz=True):
 
 #----------------IMPORT AND RANGLE IMAGES INTO RIGHT SHAPE-----------
 #Directory
-path = "C:\Data\Runs\\3_22_21"
+path = "C:\Data\Runs\\3_29_21"
 os.chdir(path)
-fileName = 'run2Far'
+fileName = 'run11Far'
 
 
 #fileName='run15ShutterOpen'
@@ -81,9 +81,9 @@ for i in range(imagesArr.shape[0]):
 
 #this start and end value captures 90% of the beam in frequency space. It is used to make the single image that is the mean
 #of a stack of iamges between imStart:imEnd
-offset=20
-imStart=65+offset
-imEnd=95+offset
+offset=-15
+imStart=70+offset
+imEnd=100+offset
 imageMean=np.mean(imagesArr[imStart:imEnd],axis=0)
 
 
@@ -93,10 +93,10 @@ imageMean=np.mean(imagesArr[imStart:imEnd],axis=0)
 
 
 #crop the image to the focus to remove noise
-xStart=80
-xEnd=85
-yStart=77
-yEnd=98
+xStart=79
+xEnd=84
+yStart=75
+yEnd=100
 
 
 
@@ -115,6 +115,7 @@ temp=imagesArr[imStart:imEnd,yStart:yEnd,xStart:xEnd]
 temp=np.mean(temp,axis=2)
 temp=np.mean(temp,axis=1)
 plt.scatter(np.arange(temp.shape[0]),temp)
+plt.plot(np.arange(temp.shape[0]),temp)
 plt.grid()
 plt.show()
 
@@ -124,8 +125,8 @@ plt.show()
 #that doesn't look very voigty
 
 #expand the image region vertically
-ya=yStart-30
-yb=yEnd+30
+ya=yStart-23
+yb=yEnd+23
 
 magnification=2.8 #this can be found from using a ruler, or using optics rules.
 pixelSize=magnification*5*.025 #in units of mm. binning X magnification X pixel size
@@ -133,9 +134,7 @@ pixelSize=magnification*5*.025 #in units of mm. binning X magnification X pixel 
 #array of the profile
 profArr=np.mean(imageMean[ya:yb,xStart:xEnd],axis=1) #laser profile from data
 
-
 zArr=(np.arange(0,imagesArr[0].shape[0]))*pixelSize #each position value corresponds to the center of the pixel
-print((zArr.max()-zArr.min())/2)
 
 
 
@@ -147,7 +146,7 @@ def voigtSpaceFit(x,x0,a,sigma,gamma,b):
     v=sps.voigt_profile(x-x0, sigma, gamma)
     return a*v/v0+b
 eps=1e-10 #small non zero number
-guess=[55.0,500.0,5.0,5.0,1200]
+guess=[30.0,1000.0,1e-1,2.5,1240]
 bounds=[(-np.inf,eps,eps,eps,0.0),(np.inf,np.inf,np.inf,np.inf,np.inf)]
 params, pcovLoopGammaFree=spo.curve_fit(voigtSpaceFit, zArr[ya:yb], profArr, p0=guess,bounds=bounds,)
 
@@ -178,7 +177,7 @@ plt.title('Vertical Spatial Profile Data With Voigt Fit')
 plt.scatter(zArr[ya:yb],profArr,c='r',label='Data',s=50.0,marker='x')
 plt.plot(zArr[ya:yb],profArr,c='r',linestyle=':')
 plt.plot(zArr[ya:yb],voigtSpaceFit(zArr[ya:yb],*params),label='Fit')
-plt.axvline(x=centerZVoigt,c='black',linestyle=':',label='Peak')
+#plt.axvline(x=centerZVoigt,c='black',linestyle=':',label='Peak')
 plt.grid()
 plt.legend()
 plt.xlabel('Position, mm')
@@ -275,8 +274,8 @@ sigmaList=[]
 TGammaFreeList=[]
 TGammaLockedList=[]
 F0List=[]
-yEnd+=10
-yStart+=-10
+#yEnd+=10
+#yStart+=-10
 for i in range(yStart,yEnd):
     #print(i)
     valArr=np.mean(imagesArr[:,i,xStart:xEnd],axis=1)
@@ -291,7 +290,6 @@ for i in range(yStart,yEnd):
     guessGammaFree=[imageFreqMhzArr[np.argmax(valArr)], 100.0, 4.0, 5, 1200.0]
     boundsGammaFree=((-np.inf, 0, 0, 5.87/2.0, 0), (np.inf, np.inf, np.inf, np.inf, np.inf))
     paramsLoopGammaFree, pcovLoopGammaFree=spo.curve_fit(fitFreeGamma, imageFreqMhzArr, valArr, p0=guessGammaFree, bounds=boundsGammaFree)
-
     TGammaFree=1e3*calculateTemp(2.355*paramsLoopGammaFree[2])
     TGammaFreeList.append(TGammaFree)
 
@@ -310,8 +308,8 @@ for i in range(yStart,yEnd):
 
     F0List.append(paramsLoopGammaFree[0])
 
-    #plt.close('all')
-    #print('T',TGammaFree)
+    # plt.close('all')
+    # print('T',TGammaFree)
     # plt.title('SINGLE ROW OF PIXELS IN FOCUS')
     # plt.plot(imageFreqMhzArr,valArr)
     # xTest=np.linspace(imageFreqMhzArr[0],imageFreqMhzArr[-1],num=10000)

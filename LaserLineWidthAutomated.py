@@ -12,19 +12,21 @@ import matplotlib.pyplot as plt
 #Adjustable values. Datapoints is the number of points to construct the etalon's signal. Samples is the number of times
 #the RMS signal is collected with pauses inbetween. Offset is the number of datapoints to the left/right of the
 #half max of of the peak. Make sure that the offset isn't so large that the linear approx. breaks down.
-datapoints = 300
+datapoints = 100
 samples = 10
-offset = 4
-wait_time = 3 #wait time in (s) between samples
+offset = 2
+wait_time = 2 #wait time in (s) between samples
 
 #Construct the Etalon's signal over a designated voltage range.
 galvoOut=DAQPin(gv.galvoOutPin)
-voltArr=np.linspace(-0.6,1.6,num = datapoints)
+voltArr=np.linspace(-0.3,1.7,num = datapoints)
 signalArr = []
 laserPin=DAQPin(gv.laserWidthInPin)
 for volt in voltArr:
     galvoOut.write(volt)
+    time.sleep(0.01)
     signalArr.append(laserPin.read(numSamples=1000,average=True))
+    print(laserPin.read(numSamples=1000,average=True))
 laserPin.close()
 galvoOut.close()
 
@@ -78,9 +80,9 @@ RMS_SD = np.std(RMS)
 #the laser input to the etalon and rms of the signals is within a few percent.
 galvoOut.write(voltArr[MinBetweenPeaks])
 DAQNoise = laserPin.read(numSamples=250000,average=False,error=True)
-
 laserPin.close()
 galvoOut.close()
+
 
 
 #Compute the RMS linewidth and then adjusted linewidth assuming the laser linewidth and DAQ board noise adds in quadrature.

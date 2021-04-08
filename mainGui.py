@@ -479,7 +479,11 @@ class ExperimentGUI:
         self.save_Settings()
         fileName=self.anlFileNameBox.get()
         folderPath=self.anlFolderPathBox.get()
-        infoFile=open(folderPath+'\\'+fileName+'Info.txt')
+        try:
+            infoFile=open(folderPath+'\\'+fileName+'Info.txt')
+        except:
+            raise Exception('FILENAME ERROR, DOES NOT EXIST. Perhaps you entered the name wrong? Dont add near or far'
+                            'to the name')
         startVolt=float(infoFile.readline().split(',')[1])
         stopVolt=float(infoFile.readline().split(',')[1])
         infoFile.close()
@@ -554,15 +558,19 @@ class ExperimentGUI:
         atomVelocity=gv.cLight*1e6*analyzer.F0/gv.Li_D2_Freq
         fig, ax1=plt.subplots(constrained_layout=True)
         plt.suptitle('Signal vs Frequency with reference cell')
-        plt.title('Atom Velocity = '+str(int(np.abs(atomVelocity)))+ 'm/s')
+        plt.title('Atom Velocity = '+str(int(np.abs(atomVelocity)))+ 'm/s. Temp= '+str(int(1e3*analyzer.T))+' mk')
         plt.xlabel('Frequency, MHz')
         ax1.plot(x1,y1,c='r',label='data')
+        xPlotDense=np.linspace(x1[0],x1[-1],num=10000)
+        ax1.plot(xPlotDense,analyzer.fitFunc(xPlotDense),label='spectroscopy fit')
+
+
         ax2=ax1.twinx()
         ax2.plot(x1,y2,c='orange',linestyle=':',label='ref cell fit')
         ax1.axvline(x=0,c='black',linestyle=':')
         ax1.axvline(x=analyzer.F0, c='black', linestyle=':')
-        ax1.legend()
-        ax2.legend()
+        ax1.legend(loc=1)
+        ax2.legend(loc=0)
         ax1.set_ylabel('Camera Signal, au')
         ax2.set_ylabel('Ref Cell Signal, au')
         ax1.grid()
