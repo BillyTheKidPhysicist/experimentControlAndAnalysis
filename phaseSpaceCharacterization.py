@@ -105,7 +105,7 @@ plt.show()
 ya=yStart-23
 yb=yEnd+23
 
-magnification=2.8 #this can be found from using a ruler, or using optics rules.
+magnification=2.77 #this can be found from using a ruler, or using optics rules.
 pixelSize=magnification*5*.025 #in units of mm. binning X magnification X pixel size
 
 #array of the profile

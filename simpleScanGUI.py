@@ -158,10 +158,10 @@ class GUI:
             tempCamera=Camera(self.cameraVar.get(),1000) #the camera will cool down
             tempCamera.close() #now close it. It will stay cool though
     def open_Aperture(self):
-        self.shutterOut.write_Low()
+        self.shutterOut.write_High()
         time.sleep(.05)
     def close_Aperture(self):
-        self.shutterOut.write_High()
+        self.shutterOut.write_Low()
         time.sleep(.05)
     def close_GUI(self):
         self.save_Settings()

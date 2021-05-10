@@ -23,7 +23,7 @@ def calculateTemp(dF0,f0=gv.Li_D2_Freq,MHz=True):
 #Directory
 path = "C:\Data\Runs\\3_29_21"
 os.chdir(path)
-fileName = 'run11Far'
+fileName = 'run4Far'
 
 
 #fileName='run15ShutterOpen'
@@ -68,33 +68,28 @@ imageFreqMhzArr=P[1]+P[0]*temp
 #is a cold pixel. Average them to the values of the surrounding pixels. ALso, clip the values of any other goofy pixels.
 #after removing, smooth the image
 for i in range(imagesArr.shape[0]):
-    #this is only valid for a specific binning and field of view. Double check before using
-    #pixHot=imagesArr[i][127,140]
-    #pixCold=imagesArr[i][128,140]
-    #pixHotAverage=(imagesArr[i][127,139]+imagesArr[i][127,141]+imagesArr[i][126,139]+imagesArr[i][126,141]+imagesArr[i][126,140])/5
-    #pixColdAverage=(imagesArr[i][128,139]+imagesArr[i][128,141]+imagesArr[i][129,139]+imagesArr[i][129,141]+imagesArr[i][129,140])/5
-    #imagesArr[i][127,140]=pixHotAverage
-    #imagesArr[i][128,140]=pixColdAverage
-    pass
     imagesArr[i]=spni.gaussian_filter(imagesArr[i], 0.5)
 
 
-#this start and end value captures 90% of the beam in frequency space. It is used to make the single image that is the mean
+#this start and end value captures >95% of the beam in frequency space. It is used to make the single image that is the mean
 #of a stack of iamges between imStart:imEnd
-offset=-15
-imStart=70+offset
-imEnd=100+offset
+offset=-18
+imStart=65+offset
+imEnd=95+offset
 imageMean=np.mean(imagesArr[imStart:imEnd],axis=0)
 
 
-
-
+#subtract background if desired
+imageBackground=(np.mean(imagesArr[:5],axis=0)+np.mean(imagesArr[-5:],axis=0))/2
+# plt.imshow(imageBackground)
+# plt.show()
+imageMean=imageMean-imageBackground
 
 
 
 #crop the image to the focus to remove noise
-xStart=79
-xEnd=84
+xStart=80
+xEnd=83
 yStart=75
 yEnd=100
 
@@ -107,17 +102,17 @@ yEnd=100
 # #plot what the mean image looks like
 temp=imageMean[yStart:yEnd,xStart:xEnd] #crop image to only the focus to remove noise
 #
-plt.imshow(temp)
-plt.show()
+# plt.imshow(temp)
+# plt.show()
 
 # #plot the mean of the focus over the restricted images
 temp=imagesArr[imStart:imEnd,yStart:yEnd,xStart:xEnd]
 temp=np.mean(temp,axis=2)
 temp=np.mean(temp,axis=1)
-plt.scatter(np.arange(temp.shape[0]),temp)
-plt.plot(np.arange(temp.shape[0]),temp)
-plt.grid()
-plt.show()
+# plt.scatter(np.arange(temp.shape[0]),temp)
+# plt.plot(np.arange(temp.shape[0]),temp)
+# plt.grid()
+# plt.show()
 
 
 #--------------SPATIAL PROFILE OF LASER----------------------
@@ -125,20 +120,29 @@ plt.show()
 #that doesn't look very voigty
 
 #expand the image region vertically
-ya=yStart-23
-yb=yEnd+23
+ya=0#yStart-23
+yb=-20#yEnd+23
 
-magnification=2.8 #this can be found from using a ruler, or using optics rules.
+magnification=2.77 #this can be found from using a ruler, or using optics rules.
 pixelSize=magnification*5*.025 #in units of mm. binning X magnification X pixel size
 
 #array of the profile
 profArr=np.mean(imageMean[ya:yb,xStart:xEnd],axis=1) #laser profile from data
-
 zArr=(np.arange(0,imagesArr[0].shape[0]))*pixelSize #each position value corresponds to the center of the pixel
 
 
 
 #two fit options, voigt or RBF
+
+
+
+
+
+
+
+
+
+
 
 #------voigt fit
 def voigtSpaceFit(x,x0,a,sigma,gamma,b):
@@ -151,6 +155,7 @@ bounds=[(-np.inf,eps,eps,eps,0.0),(np.inf,np.inf,np.inf,np.inf,np.inf)]
 params, pcovLoopGammaFree=spo.curve_fit(voigtSpaceFit, zArr[ya:yb], profArr, p0=guess,bounds=bounds,)
 
 fwhm=.5346*(2*params[3])+np.sqrt(.2166*(2*params[3])**2+(params[2]*2.335)**2)
+
 print('fwhm',np.round(fwhm,3),'Z0',np.round(params[0],1),'sig peak',np.round(params[1]))
 
 

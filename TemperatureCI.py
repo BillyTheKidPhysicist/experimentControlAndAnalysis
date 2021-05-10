@@ -127,7 +127,7 @@ temp=np.mean(temp,axis=1)
 ya=yStart-30
 yb=yEnd+30
 
-magnification=2.8 #this can be found from using a ruler, or using optics rules.
+magnification=2.77 #this can be found from using a ruler, or using optics rules.
 pixelSize=magnification*5*.025 #in units of mm. binning X magnification X pixel size
 
 #array of the profile

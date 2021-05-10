@@ -117,17 +117,16 @@ class Camera:
             self.binx=1
             self.biny=1
         if self.bin is not None:
-
             self.binx=self.bin
             self.biny=self.bin
 
         x1, x2, y1, y2=self.imageParams
         if self.camName=='FAR':
-            if self.binx<0 or self.binx>16 or self.biny<0 or self.biny>16:
-                print('----------ERROR-------------')
-                print('VALID RANGE OF BINNING FOR FLI CAMERA IS 1 TO 16')
-                gv.error_Sound()
-                sys.exit()
+            # if self.binx<0 or self.binx>16 or self.biny<0 or self.biny>16:
+            #     print('----------ERROR-------------')
+            #     print('VALID RANGE OF BINNING FOR FLI CAMERA IS 1 TO 16')
+            #     gv.error_Sound()
+            #     sys.exit()
             if self.expTime<50:
                 print('----------ERROR-------------')
                 print('FLI CAMERA EXPOSURE MUST BE AT LEAST 50 ms')

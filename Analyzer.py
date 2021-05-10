@@ -95,6 +95,7 @@ class Analyzer:
 
         guess = np.array([aG    ,bG            , cG*1.0, dFG ,tiltmG]) #array of guess
 
+
         PF, pcov = spo.curve_fit(self.spectral_Profile_Wrapper, self.imageFreqMHzArr, self.imagesMeanArr, p0=guess)
         time.sleep(.1)
         perr=np.sqrt(np.diag(pcov))

@@ -1,6 +1,7 @@
 from datetime import datetime
 import os.path
 import time
+from profilehooks import profile
 from DAQClass import DAQPin
 import globalVariables as gv
 import matplotlib.pyplot as plt
@@ -21,16 +22,19 @@ import scipy.interpolate as spi
 class ExperimentGUI:
     def __init__(self):
         self.DAQDataArr=None#array to hold data read from DAQ board. each row is a sample of data like
-                # [outputVoltage, Lithium reference chamber voltage]
+        # [outputVoltage, Lithium reference chamber voltage]
         self.imageArrList=None #list to hold array of images. looks like [[imageN1,imageF1],[imageN2,imageF2],..]
-            #where each image is a numpy array. So first image in each pair is for near, second for far
+        #where each image is a numpy array. So first image in each pair is for near, second for far
         self.settingsList=[] #to store the variables whos values will be saved so that the gui won't be opened
-            #with all the boxes empty!
+        #with all the boxes empty!
         self.MKSFullScale=500.0 #full scale of N2, sccm
         self.scaleFact=1.4 #scael factor for He
+
+        self.flowRate=0.0 #to keep track of what the flowrate is now
+
         self.window = tk.Tk()
         self.window.title("aquisition and analysis")
-        self.window.geometry('800x600')
+        self.window.geometry('1000x600')
 
         # -----------------------------------------------------------
         # -------------data analysis section-------------------------
@@ -144,13 +148,33 @@ class ExperimentGUI:
         self.binSizeNearBox.config(width=dimBoxWidth)
         self.binSizeNearBox.grid(column=1, row=5, sticky='W')
 
-        lbl10 = tk.Label(self.window, text='bin size')
+
+
+        lbl10 = tk.Label(self.window, text='binx')
         lbl10.grid(column=5, row=5, sticky='W')
 
-        self.binSizeFarBox = tk.Entry(self.window)
-        self.settingsList.append(self.binSizeFarBox)
-        self.binSizeFarBox.config(width=dimBoxWidth)
-        self.binSizeFarBox.grid(column=6, row=5, sticky='W')
+        self.binSizeFarBoxX = tk.Entry(self.window)
+        self.settingsList.append(self.binSizeFarBoxX)
+        self.binSizeFarBoxX.config(width=dimBoxWidth)
+        self.binSizeFarBoxX.grid(column=6, row=5, sticky='W')
+
+        lbl10 = tk.Label(self.window, text='biny')
+        lbl10.grid(column=7, row=5, sticky='W')
+
+        self.binSizeFarBoxY = tk.Entry(self.window)
+        self.settingsList.append(self.binSizeFarBoxY)
+        self.binSizeFarBoxY.config(width=dimBoxWidth)
+        self.binSizeFarBoxY.grid(column=8, row=5, sticky='W')
+
+        lbl11 = tk.Label(self.window, text='nozzle wait time, s')
+        lbl11.grid(column=10, row=5, sticky='W',columnspan=2)
+
+        self.nozzleWaitBox = tk.Entry(self.window)
+        self.settingsList.append(self.nozzleWaitBox)
+        self.nozzleWaitBox.config(width=dimBoxWidth)
+        self.nozzleWaitBox.grid(column=12, row=5, sticky='W')
+
+
 
         # ------------row 6--------------
         lbl10 = tk.Label(self.window, text='num exposure')
@@ -160,6 +184,13 @@ class ExperimentGUI:
         self.settingsList.append(self.expNumBox)
         self.expNumBox.config(width=dimBoxWidth)
         self.expNumBox.grid(column=3, row=6, sticky='W')
+
+        # self.shutterVar=tk.StringVar(self.window)
+        # self.settingsList.append(self.shutterVar)
+        # self.shutterVar.set("Near")
+        # shutterVarChoice=["Near", "Far"]
+        # SHUTTER_VAR=tk.OptionMenu(self.window, self.shutterVar, *shutterVarChoice)
+        # SHUTTER_VAR.grid(column=5, row=6, columnspan=1)
 
         # -------------row 7-------------
 
@@ -177,7 +208,7 @@ class ExperimentGUI:
         self.stopVoltBox.config(width=dimBoxWidth)
         self.stopVoltBox.grid(column=5, row=7, sticky='W')
 
-        
+
         # --------------row 8---------------
         lbl12 = tk.Label(self.window, text='folder path')
         lbl12.grid(column=0, row=8, sticky='W', columnspan=2)
@@ -187,7 +218,7 @@ class ExperimentGUI:
         self.dataFolderPathBox.config(width=50)
         self.dataFolderPathBox.grid(column=2, row=8, sticky='W', columnspan=5)
         # ----------------row 9---------------------
-        lbl13 = tk.Label(self.window, text='file name')
+        lbl13 = tk.Label(self.window, text='run name (ie run3)')
         lbl13.grid(column=0, row=9, sticky='W', columnspan=2)
 
         self.dataFileNameBox = tk.Entry(self.window)
@@ -253,13 +284,13 @@ class ExperimentGUI:
         #cheatVar=tk.IntVar()file
         #chk1=tk.Checkbutton(self.window, text="cheat", variable=cheatVar)
         #chk1.grid(column=2, row=21, columnspan=1)
-#
+        #
         #lbl25=tk.Label(self.window, text='offset')
         #lbl25.grid(column=3, row=21, sticky='W', columnspan=1)
         #showFitVar=tk.IntVar()
         #chk2=tk.Checkbutton(self.window, text="dont show fit", variable=showFitVar)
         #chk2.grid(column=5, row=21, columnspan=1)
-#
+        #
         #OFFSET_BOX=tk.Entry(self.window)
         #OFFSET_BOX.config(width=10)
         #OFFSET_BOX.grid(column=4, row=21, sticky='W', columnspan=1)
@@ -278,7 +309,7 @@ class ExperimentGUI:
         #----------------row 23---------------------
 
 
-        lbl21=tk.Label(self.window, text='file name')
+        lbl21=tk.Label(self.window, text='run name (ie run3)')
         lbl21.grid(column=0, row=23, sticky='W', columnspan=2)
 
         self.anlFileNameBox=tk.Entry(self.window)
@@ -318,6 +349,9 @@ class ExperimentGUI:
         self.y2BoxAnl.grid(column=3, row=25, sticky='W')
         self.settingsList.append(self.y2BoxAnl)
 
+        labl123=tk.Label(self.window,text='Coordinates are the  \n same as fits file',background='red')
+        labl123.grid(column=4,row=25)
+
         #-------------row 26----------------
         btn4=tk.Button(self.window, text='analyze', font=("Arial", 10), background="orange", command=self.do_Data_Analysis)
         btn4.grid(column=0, row=26, columnspan=1)
@@ -353,18 +387,16 @@ class ExperimentGUI:
             flowOut.write(volt)
         else:
             flowOut.write(0.0)
+        self.flowRate=flowDesired
         flowOut.close(zero=False)
     def get_Flow(self):
-        flowIn=DAQPin(gv.flowInPin)
-        volt=flowIn.read()
-        flowIn.close()
-        flow=(volt/5.0)*self.MKSFullScale*self.scaleFact #sccm
         return "Data Not Available"
     def close_GUI(self):
         self.save_Settings()
-        #flowOut = DAQPin(gv.flowOutPin)  # want to make sure that flowrate is zero when program closes
-        #flowOut.write(0.0)  # zero flowrate by writing zero voltage
-        #flowOut.close()
+        flowOut = DAQPin(gv.flowOutPin)  # want to make sure that flowrate is zero when program closes
+        flowOut.write(0.0)  # zero flowrate by writing zero voltage
+        flowOut.close()
+        print('FLow stopped')
         self.window.destroy()
         sys.exit()
     def catch_Errors_Aquisition(self):
@@ -382,7 +414,8 @@ class ExperimentGUI:
         tempList.append(self.expTimeFarBox.get())
         tempList.append(self.expTimeNearBox.get())
         tempList.append(self.expNumBox.get())
-        tempList.append(self.binSizeFarBox.get())
+        tempList.append(self.binSizeFarBoxX.get())
+        tempList.append(self.binSizeFarBoxY.get())
         tempList.append(self.binSizeNearBox.get())
         tempList.append(self.startVoltBox.get())
         tempList.append(self.stopVoltBox.get())
@@ -495,7 +528,7 @@ class ExperimentGUI:
 
 
         fitsFile = fits.open(folderPath+'\\'+fileName+camName+'.fits') #load the fits file into memory as a numpy array. This can
-            #take a little while
+        #take a little while
         imagesArr = fitsFile[0].data #there is something called a header attached to a fit file. We only want the numpy arra
         fitsFile.close()
         imagesArr=np.flip(imagesArr,axis=1) #images are flipped when transferring from fits to numpy
@@ -507,10 +540,12 @@ class ExperimentGUI:
             y1N=0
         y2N=yMax-y1
         imagesArr=imagesArr[:,y1N:y2N,x1:x2] #images is a 3 dimensional array where the first dimension is the images
-            #the second is the rows (the y) and the third is the column (the x). Zero is the top left, not the bottom
-            # right. It makes cropping a little tricky
+        #the second is the rows (the y) and the third is the column (the x). Zero is the top left, not the bottom
+        # right. It makes cropping a little tricky
+        # plt.imshow(imagesArr[0])
+        # plt.show()
         imagesMeanArr=np.mean(np.mean(imagesArr, axis=2),axis=1) #sum along one axis and then the other. The result is an array where
-            #each entry is the sum of all the pixels in that image.
+        #each entry is the sum of all the pixels in that image.
         DAQData=np.loadtxt(folderPath+'\\'+fileName+'DAQData.csv',self.DAQDataArr,delimiter=',')
         MHzScaleArr,liRefFitFunc=MakeMHzScale.make_MHz_Scale(DAQData,returnFitFunc=True)
 
@@ -545,7 +580,7 @@ class ExperimentGUI:
         #xRight=xTemp[np.argmax(yTemp[np.argmax(yTemp):]<yHalf)+np.argmax(yTemp)]
         #FWHM=xRight-xLeft
         #print(xLeft,xRight)
-#
+        #
         #plt.plot(xTemp,yTemp)
         #plt.show()
 
@@ -578,20 +613,48 @@ class ExperimentGUI:
         plt.show()
 
 
+
+
+
     def aquire_Data(self):
         self.catch_Errors_Aquisition()
         self.save_Settings()
+        # #check that there is flow. This is not foolproof because I do not use the dawboard
+        if int(float(self.flowRateBox.get()))==0:
+            gv.error_Sound()
+            print('FLOW RATE IS ZERO')
+
+        #turn on the nozzle and open the shutter
+        gv.begin_Flow_Sound()
+        self.make_Flow()
+        shutterOut=DAQPin(gv.shutterPin) #open the shutter contorl pin
+        shutterOut.open_Shutter() #open the shutter
+        time.sleep(int(self.nozzleWaitBox.get()))
+
+
+        # SWEEP
+        t=time.time()
         sweeper=Sweeper(self)
         sweeper.sweep()
+        print(time.time()-t)
+
+        #turn off the nozzle and close shutter
+        shutterOut.close_Shutter()  #close the aperture
+        shutterOut.close() #close the shutter control pin
+        self.flowRateBox.delete(0,'end')
+        self.flowRateBox.insert(0,'0')
+        self.make_Flow()
+
         self.save_Fits_Files()
         self.save_Data()
         self.make_Info_File()
-        #self.make_Lithium_Ref_Plot()
 
         #turn off the helium flow when done
-        #flowOut=DAQPin(gv.flowOutPin)
-        #flowOut.write(0)
-        #flowOut.close()
+        flowOut=DAQPin(gv.flowOutPin)
+        flowOut.write(0)
+        flowOut.close()
+        self.flowRateBox.delete(0,'end')
+        self.flowRateBox.insert(0,'0')
     def make_Lithium_Ref_Plot(self):
         fileName=self.dataFileNameBox.get()
         folderPath=self.dataFolderPathBox.get()

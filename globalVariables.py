@@ -162,6 +162,8 @@ def error_Sound():
     ws.Beep(1000, 500)
     time.sleep(1) #if there is another noise after this from another error or warning this will prevent them from
             #sounding like one warning/error
+def begin_Flow_Sound():
+    ws.Beep(750, 500)
 def begin_Sound(noWait=False):
     ws.Beep(500, 1000)
     if noWait==False:

@@ -113,6 +113,18 @@ class DAQPin:
                 return np.std(dataArray,ddof=1)
             else:
                 return dataArray
+    def open_Shutter(self):
+        if self.type!='digitalOut':
+            gv.error_Sound()
+            raise Exception('Incorrect pin to control shutter')
+        self.write_High()
+
+    def close_Shutter(self):
+        if self.type!='digitalOut':
+            gv.error_Sound()
+            raise Exception('Incorrect pin to control shutter')
+        self.write_Low()
+
     def write_High(self):
         #write a logical high value, ie 5 volts
         self.daqChannel.write(True)
@@ -125,7 +137,7 @@ class DAQPin:
             if np.abs(value-self.currentVolt) < 1.0/gv.stepsPerVoltGalvo: #if value is very close to target, dont bother sloping
                 self.daqChannel.write(value)
                 self.currentVolt=value  # remembering what the output voltage is
-                time.sleep(.01)
+                time.sleep(.005)
                 return
             else:
                 steps=int(np.abs(self.currentVolt-value)*gv.stepsPerVoltGalvo)+1 #number of steps between volts. I add one
@@ -158,6 +170,7 @@ class DAQPin:
 
 
     def close(self,zero=True):
+        #close the pin and potentially zero
         if self.thread is not None:
             self.thread.join()
         if self.type=="out":

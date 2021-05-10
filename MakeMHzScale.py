@@ -49,6 +49,7 @@ class MHzScale:
         polyOrder=3
         liRefVoltSmooth=sps.savgol_filter(self.liRefVolt,windowLength,polyOrder) #smooth the data
         #use the smoothed data to subtract any tilt that may be present as well as offset\
+
         y1=np.mean(liRefVoltSmooth[self.galvoVolt<self.galvoVolt[0]+.5]) #average of y values in the first 500 mv
         y2=np.mean(liRefVoltSmooth[self.galvoVolt>self.galvoVolt[-1]-.5])  #average of y values in the last 500mv
         x1=np.mean(self.galvoVolt[self.galvoVolt<self.galvoVolt[0]+.5]) #average of x values in the first 500 mv
@@ -64,7 +65,7 @@ class MHzScale:
         liRefVoltSmoothDense=fitFunc(xSample) #now the data is more dense
         minHeight=np.max(liRefVoltSmoothDense)/10
 
-        sep=int(.5*pointsPerVolt*(liRefVoltSmoothDense.shape[0]/self.liRefVolt.shape[0])) #seperation between peaks in points. Need
+        sep=int(.25*pointsPerVolt*(liRefVoltSmoothDense.shape[0]/self.liRefVolt.shape[0])) #seperation between peaks in points. Need
             #to scale to account for the fact that the data to be fit is now more dense
         peakPosArr, heightDict=sps.find_peaks(liRefVoltSmoothDense, height=minHeight, distance=sep)
         peak1VoltMean=np.mean(xSample[peakPosArr[:2]])

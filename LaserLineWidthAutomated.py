@@ -15,11 +15,14 @@ import matplotlib.pyplot as plt
 datapoints = 100
 samples = 10
 offset = 2
-wait_time = 2 #wait time in (s) between samples
+wait_time = 1 #wait time in (s) between samples
+
+#FSR of the Elaton
+FSR = 1000
 
 #Construct the Etalon's signal over a designated voltage range.
 galvoOut=DAQPin(gv.galvoOutPin)
-voltArr=np.linspace(-0.3,1.7,num = datapoints)
+voltArr=np.linspace(-1.8,0.2,num = datapoints)
 signalArr = []
 laserPin=DAQPin(gv.laserWidthInPin)
 for volt in voltArr:
@@ -44,7 +47,7 @@ LinearSlopeCenterVoltage = (FirstPeakVoltage + MidwayVoltage) / 2
 
 
 #Contruct the Mhz per voltage scale.
-MHzScale = 1000 / (voltArr[SecondPeak]-voltArr[FirstPeak])
+MHzScale = FSR / (voltArr[SecondPeak]-voltArr[FirstPeak])
 
 def find_nearest(array, value):
     array=np.asarray(array)

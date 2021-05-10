@@ -41,8 +41,8 @@ class Sweeper:
         self.expTimeNear=int(GUI.expTimeNearBox.get())
         self.expTimeFar=int(GUI.expTimeFarBox.get())
         self.binSizeNear=int(self.GUI.binSizeNearBox.get())
-        self.binSizeFar=int(self.GUI.binSizeFarBox.get())
-
+        self.binSizeFarX=int(self.GUI.binSizeFarBoxX.get())
+        self.binSizeFarY=int(self.GUI.binSizeFarBoxY.get())
 
 
         if self.imageStartVolt<self.minVolt or self.imageStartVolt>self.maxVolt or self.imageStopVolt<self.minVolt or self.imageStopVolt>self.maxVolt:
@@ -50,6 +50,7 @@ class Sweeper:
         if self.imageStopVolt<self.imageStartVolt:
             raise Exception('ENDING VOLTAGE IS BEFORE STARTING VOLTAGE FOR IMAGE SWEEP!')
         self.imageVoltArr=np.linspace(self.imageStartVolt,self.imageStopVolt,num=self.numExp)
+
     def sweep(self):
         #this sweeps the galvo output voltage. There are two arrays, DAQVoltArr and imageVoltArr. DAQVoltArr contains all
         #the voltage values to collect DAQ data at. imageVoltArr contains the values to take iamges at. imageVolt array's
@@ -69,7 +70,7 @@ class Sweeper:
 
         print('\n \n \n \n')
         print('-----SWEEPING NOW----')
-        time.sleep(.01) #if you don't wait a little then the progress bar and other messages will get messed up
+        time.sleep(.001) #if you don't wait a little then the progress bar and other messages will get messed up
             #in the terminal because they will try to write on top of each other
         progressBar=tqdm(total=totalSteps)
         while loop==True:
@@ -120,7 +121,7 @@ class Sweeper:
                 #there is no camera active for a given image the entry is None
                 takeImage=False
         progressBar.close()
-        time.sleep(.1)#like I said above. Pause to allow the progress bar to finish writting so it doesn't get messed up
+        time.sleep(.001)#like I said above. Pause to allow the progress bar to finish writting so it doesn't get messed up
         print('-----END OF SWEEP-----')
         self._close_DAQ_Pins()
         self._close_Cameras()
@@ -137,14 +138,33 @@ class Sweeper:
     def _close_DAQ_Pins(self):
         self.galvoOut.close()
         self.lithiumRefIn.close()
+
     def _initialize_Cameras(self):
+        binNearX=self.binSizeNear
+        binNearY=self.binSizeNear
+        binFarX=self.binSizeFarX
+        binFarY=self.binSizeFarY
+        if binFarX<=0 and binFarY<=0:
+            raise Exception('Both bin values cannot be zero')
+        elif binFarX==0:
+            binFarX=binFarY
+        elif binFarY==0:
+            binFarY=binFarX
+        
+        if binNearX<=0 and binNearY<=0:
+            raise Exception('Both bin values cannot be zero')
+        elif binNearX==0:
+            binNearX=binNearY
+        elif binNearY==0:
+            binNearY=binNearX
+
         if self.GUI.cameraVarData.get()=='BOTH':
-            self.cameraFar=Camera('FAR', self.expTimeFar, self.imageParamFar,bin=self.binSizeFar)
-            self.cameraNear=Camera('NEAR', self.expTimeNear, self.imageParamNear,bin=self.binSizeNear)
+            self.cameraFar=Camera('FAR', self.expTimeFar, self.imageParamFar, binx=binFarX, biny=binFarY)
+            self.cameraNear=Camera('NEAR', self.expTimeNear, self.imageParamNear, binx=binNearX, biny=binNearY)
         elif self.GUI.cameraVarData.get()=='NEAR':
-            self.cameraNear=Camera('NEAR', self.expTimeNear, self.imageParamNear,bin=self.binSizeNear)
+            self.cameraNear=Camera('NEAR', self.expTimeNear, self.imageParamNear, binx=binNearX, biny=binNearY)
         elif self.GUI.cameraVarData.get()=='FAR':
-            self.cameraFar=Camera('FAR',self.expTimeFar,self.imageParamFar,bin=self.binSizeFar)
+            self.cameraFar=Camera('FAR', self.expTimeFar, self.imageParamFar,binx=binFarX,biny=binFarY)
         else:
             gv.error_Sound()
             raise Exception('NO VALID CAMERA NAME PROVIDED')
