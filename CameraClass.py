@@ -49,7 +49,7 @@ class Camera:
         elif self.camName=='NEAR':
             self._initialize_Camera_Ximea()
         else:
-            raise Exception('NO VALID CAMERA NAME PROVIDED')
+            raise Exception('No valid camera name provided. Names are \'FAR\' or \'NEAR\'')
     def _initialize_Camera_Ximea(self):
         self.cameraObject=xi.Camera()
         self.cameraObject.open_device()

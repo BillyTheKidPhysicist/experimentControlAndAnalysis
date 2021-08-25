@@ -79,6 +79,13 @@ Li_2S_F2_F1_Sep=803.504E6   # seperation of 2S1/2 hyperfine levels,hz [1]
 Li_D2_Freq=446810184E6 #[1], center value
 LiTau=5.86E6 #natural linewidth of transition,  FWHM. [2]
 
+F2F1Ratio=1/.404 #the strength of the F2 transition if greater than the strength of the F1 transition by this factor.
+#This number comes from using data from the observation cell, which does not have the sidebands, and fitting the
+#profile with a parameter for the ratio of the peaks. This may only be valid with broadening because otherwise there
+#are distinct peaks in F=1 and F=2 and the method used here may not apply. If the number A is used to weight each
+#hyperfine peak in the F=2 transition, then A/F2F1Ratio must be used for the F=1 transition if doing a multi-peak
+#spectral fit
+
 
 #--Hyperfine structure-----------
 
@@ -104,8 +111,8 @@ F3Sep=-6.929E6
 
 
 #----------Laser scanning constants--------
-minScanVal=-3.0 #minimum expected scan value
-maxScanVal=3.0 #maximum expected scan value
+minScanVal=-4.0 #minimum expected scan value
+maxScanVal=4.0 #maximum expected scan value
 timePerVolt=.250 #seconds that it should take to scan a volt. This is so the laser doesn't lose lock
                #you can't let it scan too fast
 fullScanRange=maxScanVal-minScanVal #the total scan range

@@ -31,11 +31,9 @@ class MHzScale:
             print('---------END WARNING---------------')
         self.galvoVolt=self.DAQData[:,0]
         MHzScaleArr=(self.galvoVolt-peak1VoltMean)*MHzPerVolt
-        fitFunc= lambda x: fitFuncVolt((x/MHzPerVolt+peak1VoltMean)) #convert voltage to frequency for fit func
-        # plt.plot(MHzScaleArr,fitFunc(MHzScaleArr))
-        # plt.axvline(x=0)
-        # plt.grid()
+        # plt.plot(MHzScaleArr,fitFuncVolt(self.galvoVolt))
         # plt.show()
+        fitFunc= lambda x: fitFuncVolt((x/MHzPerVolt+peak1VoltMean)) #convert voltage to frequency for fit func
         if returnFitFunc==False:
             return MHzScaleArr
         else:

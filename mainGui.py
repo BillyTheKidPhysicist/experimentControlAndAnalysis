@@ -1,3 +1,4 @@
+from DataAnalysis import DataAnalyzer
 from datetime import datetime
 import os.path
 import time
@@ -15,7 +16,6 @@ import numpy as np
 #import matplotlib.pyplot as plt
 import tkinter as tk
 import MakeMHzScale
-from Analyzer import Analyzer
 import scipy.interpolate as spi
 
 
@@ -557,11 +557,13 @@ class ExperimentGUI:
 
 
         S=float(self.saturationConstantBox.get()) #saturation constant, I/I_sat
-        analyzer=Analyzer(imagesMeanArr,imageFreqMhzArr,S)
-        analyzer.fit_Image_Data()
 
-        self._Make_And_Save_Spectral_Fit_Plot(analyzer, DAQData,liRefFitFunc)
-    def _Make_And_Save_Spectral_Fit_Plot(self, analyzer, DAQData,liRefFitFunc):
+        dataAnalyzer=DataAnalyzer()
+        dataAnalyzer.fit_Spectral_Profile(imageFreqMhzArr,imagesMeanArr,lensHeating=False,peakMode='multi')
+        print('CHECK THAT THIS MAKES SENSE')
+
+        self._Make_And_Save_Spectral_Fit_Plot(dataAnalyzer, DAQData,liRefFitFunc)
+    def _Make_And_Save_Spectral_Fit_Plot(self, dataAnalyzer, DAQData,liRefFitFunc):
         fileName=self.anlFileNameBox.get()
         folderPath=self.anlFolderPathBox.get()
         galvoVoltArr=DAQData[:,0]
@@ -586,24 +588,27 @@ class ExperimentGUI:
 
 
 
-        x1=analyzer.imageFreqMHzArr
-        y1=analyzer.imagesMeanArr
+        x1=dataAnalyzer.imageFreqArr
+        y1=dataAnalyzer.imageSignalArr
         y2=liRefFitFunc(x1)
+        xPlotDense=np.linspace(x1[0],x1[-1],num=10000)
+        denseSpectralProfile=dataAnalyzer.spectral_Fit(xPlotDense)
 
-        atomVelocity=gv.cLight*1e6*analyzer.F0/gv.Li_D2_Freq
+
+        F0=xPlotDense[np.argmax(denseSpectralProfile)]
+        atomVelocity=gv.cLight*1e6*F0/gv.Li_D2_Freq
         fig, ax1=plt.subplots(constrained_layout=True)
         plt.suptitle('Signal vs Frequency with reference cell')
-        plt.title('Atom Velocity = '+str(int(np.abs(atomVelocity)))+ 'm/s. Temp= '+str(int(1e3*analyzer.T))+' mk')
+        plt.title('Atom Velocity = '+str(int(np.abs(atomVelocity)))+ 'm/s. Temp= '+str(np.round(np.nan*1e3*dataAnalyzer.T))+' mk')
         plt.xlabel('Frequency, MHz')
         ax1.plot(x1,y1,c='r',label='data')
-        xPlotDense=np.linspace(x1[0],x1[-1],num=10000)
-        ax1.plot(xPlotDense,analyzer.fitFunc(xPlotDense),label='spectroscopy fit')
+        ax1.plot(xPlotDense,denseSpectralProfile,label='spectroscopy fit')
 
 
         ax2=ax1.twinx()
         ax2.plot(x1,y2,c='orange',linestyle=':',label='ref cell fit')
         ax1.axvline(x=0,c='black',linestyle=':')
-        ax1.axvline(x=analyzer.F0, c='black', linestyle=':')
+        ax1.axvline(x=F0, c='black', linestyle=':')
         ax1.legend(loc=1)
         ax2.legend(loc=0)
         ax1.set_ylabel('Camera Signal, au')
@@ -649,12 +654,7 @@ class ExperimentGUI:
         self.save_Data()
         self.make_Info_File()
 
-        #turn off the helium flow when done
-        flowOut=DAQPin(gv.flowOutPin)
-        flowOut.write(0)
-        flowOut.close()
-        self.flowRateBox.delete(0,'end')
-        self.flowRateBox.insert(0,'0')
+
     def make_Lithium_Ref_Plot(self):
         fileName=self.dataFileNameBox.get()
         folderPath=self.dataFolderPathBox.get()
