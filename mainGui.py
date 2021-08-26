@@ -1,4 +1,4 @@
-from DataAnalysis import DataAnalyzer
+from DataAnalysis import fit_Spectral_Data
 from datetime import datetime
 import os.path
 import time
@@ -546,7 +546,7 @@ class ExperimentGUI:
         # plt.show()
         imagesMeanArr=np.mean(np.mean(imagesArr, axis=2),axis=1) #sum along one axis and then the other. The result is an array where
         #each entry is the sum of all the pixels in that image.
-        DAQData=np.loadtxt(folderPath+'\\'+fileName+'DAQData.csv',self.DAQDataArr,delimiter=',')
+        DAQData=np.loadtxt(folderPath+'\\'+fileName+'DAQData.csv',delimiter=',')
         MHzScaleArr,liRefFitFunc=MakeMHzScale.make_MHz_Scale(DAQData,returnFitFunc=True)
 
         #make MHZ array corresponding to images
@@ -558,12 +558,12 @@ class ExperimentGUI:
 
         S=float(self.saturationConstantBox.get()) #saturation constant, I/I_sat
 
-        dataAnalyzer=DataAnalyzer()
-        dataAnalyzer.fit_Spectral_Profile(imageFreqMhzArr,imagesMeanArr,lensHeating=False,peakMode='multi')
+        spectralFit=fit_Spectral_Data(imageFreqMhzArr,imagesMeanArr,lensHeating=False,peakMode='multi')
+
         print('CHECK THAT THIS MAKES SENSE')
 
-        self._Make_And_Save_Spectral_Fit_Plot(dataAnalyzer, DAQData,liRefFitFunc)
-    def _Make_And_Save_Spectral_Fit_Plot(self, dataAnalyzer, DAQData,liRefFitFunc):
+        self._Make_And_Save_Spectral_Fit_Plot(spectralFit, DAQData,liRefFitFunc)
+    def _Make_And_Save_Spectral_Fit_Plot(self, spectralFit, DAQData,liRefFitFunc):
         fileName=self.anlFileNameBox.get()
         folderPath=self.anlFolderPathBox.get()
         galvoVoltArr=DAQData[:,0]
@@ -588,18 +588,19 @@ class ExperimentGUI:
 
 
 
-        x1=dataAnalyzer.imageFreqArr
-        y1=dataAnalyzer.imageSignalArr
+        x1=spectralFit.imageFreqArr
+        y1=spectralFit.imageSignalArr
         y2=liRefFitFunc(x1)
         xPlotDense=np.linspace(x1[0],x1[-1],num=10000)
-        denseSpectralProfile=dataAnalyzer.spectral_Fit(xPlotDense)
+        denseSpectralProfile=spectralFit.fit_Function(xPlotDense)
 
 
         F0=xPlotDense[np.argmax(denseSpectralProfile)]
         atomVelocity=gv.cLight*1e6*F0/gv.Li_D2_Freq
         fig, ax1=plt.subplots(constrained_layout=True)
         plt.suptitle('Signal vs Frequency with reference cell')
-        plt.title('Atom Velocity = '+str(int(np.abs(atomVelocity)))+ 'm/s. Temp= '+str(np.round(np.nan*1e3*dataAnalyzer.T))+' mk')
+        T=spectralFit.fitResultsDict['temperature']
+        plt.title('Atom Velocity = '+str(int(np.abs(atomVelocity)))+ 'm/s. Temp= '+str(np.round(1e3*T))+' mk')
         plt.xlabel('Frequency, MHz')
         ax1.plot(x1,y1,c='r',label='data')
         ax1.plot(xPlotDense,denseSpectralProfile,label='spectroscopy fit')
