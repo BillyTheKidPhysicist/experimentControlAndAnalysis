@@ -22,7 +22,7 @@ FSR = 1000
 
 #Construct the Etalon's signal over a designated voltage range.
 galvoOut=DAQPin(gv.galvoOutPin)
-voltArr=np.linspace(-1.8,0.2,num = datapoints)
+voltArr=np.linspace(-1.3,0.7 ,num = datapoints)
 signalArr = []
 laserPin=DAQPin(gv.laserWidthInPin)
 for volt in voltArr:
@@ -44,6 +44,7 @@ FirstPeakVoltage = signalArr[FirstPeak]
 SecondPeakVoltage = signalArr[SecondPeak]
 MidwayVoltage = signalArr[MinBetweenPeaks]
 LinearSlopeCenterVoltage = (FirstPeakVoltage + MidwayVoltage) / 2
+print('LinearSlopeCenterVoltage',LinearSlopeCenterVoltage)
 
 
 #Contruct the Mhz per voltage scale.
@@ -53,6 +54,31 @@ def find_nearest(array, value):
     array=np.asarray(array)
     idx=(np.abs(array-value)).argmin()
     return array[idx]
+
+def binarySearchCount(arr, n, key):
+    left=0
+    right=n
+
+    mid=0
+    while (left<right):
+        mid=(right+left)//2
+
+        if (arr[mid]==key):
+
+            while (mid+1<n and arr[mid+1]==key):
+                mid+=1
+            break
+
+        elif (arr[mid]>key):
+            right=mid
+
+        else:
+            left=mid+1
+
+    while (mid>-1 and arr[mid]>key):
+        mid-=1
+
+    return mid+1
 
 
 #Determine the center location of the linear portion of the peak and the(x1,y1) and (x2,y2) values to find the slope.
@@ -73,6 +99,28 @@ RMS =[]
 for i in range(samples):
     RMS.append(laserPin.read(numSamples=250000,average=False,error = True))
     time.sleep(wait_time)
+
+
+Noise = laserPin.read(numSamples=250000,average=4,error=3)
+folderPath='C:\Data\Runs\8_23_21\\'
+np.savetxt(folderPath+'LaserNoiseFreq ',(Noise*MHzScale))
+Order = np.sort(Noise)
+NBins = 75
+Bins = np.linspace(Order[0],Order[-1],num= NBins)
+
+
+
+NoiseValues = []
+i = 0
+
+while i < NBins:
+    if i==0:
+        value =  binarySearchCount(Order,len(Order),Bins[i])
+    else :
+        value = binarySearchCount(Order,len(Order),Bins[i])-binarySearchCount(Order,len(Order),Bins[i-1])
+    NoiseValues.append(value)
+    i = i + 1
+
 
 RMS_average = np.average(RMS)
 RMS_SD = np.std(RMS)
@@ -108,5 +156,9 @@ plt.axvline(voltArr[FirstPeak])
 plt.axvline(voltArr[SecondPeak])
 plt.axvline(voltArr[LinearSlopeIndex-offset])
 plt.axvline(voltArr[LinearSlopeIndex+offset])
+plt.show()
+
+plt.scatter(Bins,NoiseValues)
+plt.title('Laser Noise Profile')
 plt.show()
 

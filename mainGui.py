@@ -20,7 +20,7 @@ import scipy.interpolate as spi
 
 
 class ExperimentGUI:
-    def __init__(self):
+    def __init__(self,showGui=True):
         self.DAQDataArr=None#array to hold data read from DAQ board. each row is a sample of data like
         # [outputVoltage, Lithium reference chamber voltage]
         self.imageArrList=None #list to hold array of images. looks like [[imageN1,imageF1],[imageN2,imageF2],..]
@@ -33,9 +33,6 @@ class ExperimentGUI:
         self.flowRate=0.0 #to keep track of what the flowrate is now
 
         self.window = tk.Tk()
-        self.window.title("aquisition and analysis")
-        self.window.geometry('1000x600')
-
         # -----------------------------------------------------------
         # -------------data analysis section-------------------------
         # -----------------------------------------------------------
@@ -371,7 +368,14 @@ class ExperimentGUI:
 
         self.window.protocol("WM_DELETE_WINDOW", self.close_GUI)
         self.update_Flow_Rate()
-        self.window.mainloop()
+        self.window.title("aquisition and analysis")
+        self.window.geometry('1000x600')
+
+        if showGui==False:
+            self.window.withdraw()
+        else:
+            self.window.mainloop()
+
     def update_Flow_Rate(self):
         #this function calls itself every 500 ms
         self.window.after(500, self.update_Flow_Rate)
@@ -560,7 +564,6 @@ class ExperimentGUI:
 
         spectralFit=fit_Spectral_Data(imageFreqMhzArr,imagesMeanArr,lensHeating=False,peakMode='multi')
 
-        print('CHECK THAT THIS MAKES SENSE')
 
         self._Make_And_Save_Spectral_Fit_Plot(spectralFit, DAQData,liRefFitFunc)
     def _Make_And_Save_Spectral_Fit_Plot(self, spectralFit, DAQData,liRefFitFunc):

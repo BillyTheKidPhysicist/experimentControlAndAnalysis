@@ -33,9 +33,9 @@ def laserSignal(x,P=1):
 
 
 #Directory
-path = "C:\Data\Runs\\8_26_21"
+path = "C:\Data\Runs\\8_29_21"
 os.chdir(path)
-fileName = 'run7Far'
+fileName = 'run29Far'
 
 
 
@@ -78,12 +78,12 @@ imageBackGround=(np.mean(imagesArr[-5:],axis=0)+np.mean(imagesArr[:5],axis=0))/2
 
 imagesArr=imagesArr-imageBackGround #extract background.
 
-
-trimValue=2e3 #maximum positive trim value for cosmic rays
-imagesArr[imagesArr>trimValue]=trimValue
-#maximum negative trim
-trimValue=-10
-imagesArr[imagesArr<trimValue]=trimValue
+#
+# trimValue=2e3 #maximum positive trim value for cosmic rays
+# imagesArr[imagesArr>trimValue]=trimValue
+# #maximum negative trim
+# trimValue=-10
+# imagesArr[imagesArr<trimValue]=trimValue
 
 
 #go through each image and apply a median filter to remove hot/dead pixels and cosmic rays
@@ -324,7 +324,7 @@ while i <= (256-32-width):
         v=sps.voigt_profile(x-x0, sigma, gamma)
         return a*v/v0+b
     eps=1e-10 #small non zero number
-    guess=[30.0,1000.0,1e-1,2.5,1240]
+    guess=[30.0,10000.0,1e-1,2.5,1240]
     bounds=[(-np.inf,eps,eps,eps,0.0),(np.inf,np.inf,np.inf,np.inf,np.inf)]
     params, pcovLoopGammaFree=spo.curve_fit(voigtSpaceFit, zArr, profArr, p0=guess,bounds=bounds,)
     fwhm=.5346*(2*params[3])+np.sqrt(.2166*(2*params[3])**2+(params[2]*2.335)**2)
@@ -348,12 +348,14 @@ plt.title('FWHM of Voigt vs Position for '+str(fileName))
 plt.xlabel("Distance from Face of Output of Magnet (mm)")
 plt.ylabel("FWHM of Voigt (mm)")
 #plt.savefig('FWHM_'+fileName)
+plt.grid()
 plt.show()
 
 plt.scatter(FWHMpos,FWHMSig)
 plt.title('Peak Signal of Voigt vs Position for '+str(fileName))
 plt.xlabel("Distance from Left of Image (mm)")
 plt.ylabel("Peak Signal of Voigt (arb.)")
+plt.grid()
 #plt.savefig('FWHMSignal_'+fileName)
 plt.show()
 
