@@ -33,9 +33,9 @@ def laserSignal(x,P=1):
 
 
 #Directory
-path = "C:\Data\Runs\\8_29_21"
+path = "C:\Data\Runs\\8_26_21"
 os.chdir(path)
-fileName = 'run29Far'
+fileName = 'run42Far'
 
 
 
@@ -69,21 +69,13 @@ imageFreqMhzArr=P[1]+P[0]*temp
 
 
 
-
-
-
 #Find background
 imageBackGround=(np.mean(imagesArr[-5:],axis=0)+np.mean(imagesArr[:5],axis=0))/2 #take images from beginning and end
 #to get average of background noise
 
 imagesArr=imagesArr-imageBackGround #extract background.
 
-#
-# trimValue=2e3 #maximum positive trim value for cosmic rays
-# imagesArr[imagesArr>trimValue]=trimValue
-# #maximum negative trim
-# trimValue=-10
-# imagesArr[imagesArr<trimValue]=trimValue
+
 
 
 #go through each image and apply a median filter to remove hot/dead pixels and cosmic rays
@@ -124,9 +116,9 @@ plt.show()
 #Spatial Analysis Box
 yStart=0
 yEnd=-1
-delta=-70*0
-xStart=118-delta
-xEnd=120-delta
+delta=-50*0
+xStart=110#109-delta
+xEnd=130#111-delta
 image=np.mean(imagesArr[imageLeft:imageRight,yStart:yEnd,xStart:xEnd],axis=0)
 plt.imshow(image)
 plt.show()
@@ -135,17 +127,21 @@ plt.show()
 valArr=np.mean(np.mean(imagesArr[:,yStart:yEnd,xStart:xEnd],axis=1),axis=1)
 
 
-lensHeating=True
+lensHeating=False
+laserJitter=1.1
 spectralFit=fit_Spectral_Data(imageFreqMhzArr,valArr,lensHeating=lensHeating,vTMaxLens=.07*200*.9
-                                         ,peakMode='single')
+                                         ,peakMode='single',laserJitter=laserJitter)
 
 
 T=1e3*spectralFit.get_Temperature()
 spectralFit.print_Results()
-area = np.trapz(valArr,x=imageFreqMhzArr*10**6) #4649
-maxFreqSig = np.amax(imageFreqMhzArr)
+
+
+area = np.trapz(valArr,x=imageFreqMhzArr*10**6*2*np.pi) #4649
+
+maxSignal=np.max(valArr)
 print('area under curve in frequency space',area/1e6)
-print('S(v0)',maxFreqSig/area)
+print('S(w0)',maxSignal/area)
 
 freqCenter=spectralFit.fitResultsDict['center frequency']
 print('Temperature of whole image, mk', np.round(T,1))
@@ -157,7 +153,7 @@ xTest=np.linspace(imageFreqMhzArr[0], imageFreqMhzArr[-1], num=10000)
 
 #plt.scatter(imageFreqMhzArr,valArr,c='r',label='Data',s=50.0,marker='x')
 plt.plot(imageFreqMhzArr,valArr,c='r')
-plt.plot(imageFreqMhzArr, spectralFit.fit_Function(imageFreqMhzArr),label='Fit')
+plt.plot(imageFreqMhzArr, spectralFit.fit_Result_Function(imageFreqMhzArr),label='Fit')
 plt.axvline(x=freqCenter,c='black',linestyle=':',label='Peak')
 plt.xlabel('frequency, MHz')
 plt.grid()
@@ -194,7 +190,6 @@ pixelSize=magnification*4*.024  #in units of mm. binning X magnification X pixel
 #array of the profile
 profArr=np.mean(imageMean, axis=1)  #laser profile from data
 zArr=(np.arange(0, profArr.shape[0]))*pixelSize  #each position value corresponds to the center of the pixel
-
 
 def voigtSpaceFit(x, x0, a, sigma, gamma, b):
     v0=sps.voigt_profile(0, sigma, gamma)

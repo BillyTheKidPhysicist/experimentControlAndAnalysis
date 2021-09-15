@@ -22,7 +22,7 @@ FSR = 1000
 
 #Construct the Etalon's signal over a designated voltage range.
 galvoOut=DAQPin(gv.galvoOutPin)
-voltArr=np.linspace(-1.3,0.7 ,num = datapoints)
+voltArr=np.linspace(-1.3,0.8 ,num = datapoints)
 signalArr = []
 laserPin=DAQPin(gv.laserWidthInPin)
 for volt in voltArr:

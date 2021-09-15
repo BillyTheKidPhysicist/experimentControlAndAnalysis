@@ -147,6 +147,7 @@ class MHzScale:
 
         peak1Volt=params[0]
         peak2Volt=peak1Volt+params[1]
+        #todo: Make these plots get saved
         # plt.plot(self.galvoVoltArrRaw, self.LiRefVoltArr)
         # plt.plot(self.galvoVoltArrRaw, self.signal_Profile(self.galvoVoltArrRaw, *params))
         # plt.axvline(x=peak1Volt,c='black')

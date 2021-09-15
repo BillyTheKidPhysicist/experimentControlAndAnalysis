@@ -25,10 +25,10 @@ import sys
 
 mTOnm=1e9 #number of nanometers in a meter
 cLight = 2.998792458E8  # Speed of light
-
-
-
-
+hbar = 1.054571726e-34 #h/(2*pi) in Js
+lambda_D2line = 670.776e-9 #in m
+A21 = 3.689e7 #in rad/s
+w21 = 2.81e15 #Frequency in rad/s for D2 line
 
 
 

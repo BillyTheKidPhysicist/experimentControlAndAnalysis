@@ -595,7 +595,7 @@ class ExperimentGUI:
         y1=spectralFit.imageSignalArr
         y2=liRefFitFunc(x1)
         xPlotDense=np.linspace(x1[0],x1[-1],num=10000)
-        denseSpectralProfile=spectralFit.fit_Function(xPlotDense)
+        denseSpectralProfile=spectralFit.fit_Result_Function(xPlotDense)
 
 
         F0=xPlotDense[np.argmax(denseSpectralProfile)]

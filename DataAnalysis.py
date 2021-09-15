@@ -18,6 +18,7 @@ class fitSolutionClass:
     def __init__(self,dataAnalyzerObject):
         self.fitResultsDict={} #dictionary to hold parameters from solution. This makes it much harder to get confused about
         #which value goes with which param.
+        self._fit_params=dataAnalyzerObject.params
         self._unitsListForParamters=['MHz','au','au','MHz','MHz','MHz','','','m/s','K']
         self._dataAnalyzerObject=dataAnalyzerObject
         self._fill_fitResultsDict()
@@ -25,13 +26,15 @@ class fitSolutionClass:
         self.imageSignalArr=dataAnalyzerObject.imageSignalArr
     def get_Temperature(self):
         return self.fitResultsDict['temperature']
+    def get_Params(self):
+        pass
     def _fill_fitResultsDict(self):
         v0, a, b, sigma, gamma=self._dataAnalyzerObject.params
         self.fitResultsDict['center frequency']=v0
         self.fitResultsDict['signal height']=a
         self.fitResultsDict['vertical offset']=b
-        self.fitResultsDict['sigma']=sigma
-        self.fitResultsDict['gamma']=gamma
+        self.fitResultsDict['sigma, STDev']=sigma
+        self.fitResultsDict['gamma, FWHM']=gamma
         self.fitResultsDict['laser jitter']=self._dataAnalyzerObject.laserJitter
         self.fitResultsDict['peak mode']=self._dataAnalyzerObject.peakMode
         self.fitResultsDict['including lens heating']=self._dataAnalyzerObject.lensHeating
@@ -39,7 +42,17 @@ class fitSolutionClass:
         self.fitResultsDict['temperature']=self._dataAnalyzerObject.T
     def print_Results(self):
         print(self)
-    def fit_Function(self,freq):
+    def fit_Function(self,freq,params):
+        #this method allows you to pass your own params to the fit function. You can get the params from the fit,
+        #then modify them as you desire. For example
+        # params=fitSolution.get_Params()
+        # params[1]=0.0
+        # fit=fitSolution.(freqArr,*params)
+        freqTMaxLens=self._dataAnalyzerObject.freqTMaxLens
+        peakMode=self._dataAnalyzerObject.peakMode
+        laserJitter=self._dataAnalyzerObject.laserJitter
+        return self._dataAnalyzerObject._spectral_Profile(freq, *params, freqTMaxLens, peakMode, laserJitter)
+    def fit_Result_Function(self,freq):
         return self._dataAnalyzerObject.spectral_Fit(freq)
     def __str__(self):
         #this is used when passing an instance of fitSolutionClass to print.
@@ -297,7 +310,7 @@ class _DataAnalyzer:
         testDataSignal=spf.voigt_profile(testDataFreq-freq0,sigma,gamma)/spf.voigt_profile(0.0,sigma,gamma)
         testDataSignal=a*testDataSignal+b
         np.random.seed(42) #set the seed to repeatable noise
-        print('renable me and change stuff below')
+
         # testDataSignal+=30.0*np.random.random(numTestDataPoints) #add gaussion noise
         np.random.seed(int(time.time())) #reseed the random generator
 
@@ -306,21 +319,21 @@ class _DataAnalyzer:
         tester3=fit_Spectral_Data(testDataFreq,testDataSignal,'multi',True,10.0,gv.LiTau/1e6,0.0)._dataAnalyzerObject
         tester4=fit_Spectral_Data(testDataFreq,testDataSignal,'single',True,10.0,gv.LiTau/1e6,0.0)._dataAnalyzerObject
         tester5=fit_Spectral_Data(testDataFreq,testDataSignal,'single',True,10.0,gv.LiTau/1e6,1.0)._dataAnalyzerObject
+        testerList=[tester1,tester2,tester3,tester4,tester5]
         # now test that saved results match with current results
-        # data=[]
-        # data.append([*tester1.params,tester1.T])
-        # data.append([*tester2.params,tester2.T])
-        # data.append([*tester3.params,tester3.T])
-        # data.append([*tester4.params,tester4.T])
-        # data.append([*tester5.params,tester5.T])
-        # np.savetxt('DataAnalyzer_TestData',np.asarray(data))
         testResults=np.loadtxt('DataAnalyzer_TestData')
-        # assert np.all(testResults[0]==np.asarray([*tester1.params,tester1.T]))
-        # assert np.all(testResults[1]==np.asarray([*tester2.params,tester2.T]))
-        # assert np.all(testResults[2]==np.asarray([*tester3.params,tester3.T]))
-        # assert np.all(testResults[3]==np.asarray([*tester4.params,tester4.T]))
-        # assert np.all(testResults[4]==np.asarray([*tester5.params,tester5.T]))
+        for i in range(len(testerList)):
+            assert np.all(testResults[i]==np.asarray([*testerList[i].params, testerList[i].T]))
+            print('test '+str(i)+' passed')
         print('self test passed')
+    def save_Test_Data(self,testerList):
+        gv.warning_Sound()
+        # input("you are trying to save new test data, and overwrite the old. Press enter to proceed")
+        data=[]
+        for tester in testerList:
+            data.append([*tester.params,tester.T])
+        np.savetxt('DataAnalyzer_TestData',np.asarray(data))
+
 def perform_Test():
     tester=_DataAnalyzer()
     tester.self_Test()
