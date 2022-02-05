@@ -56,12 +56,12 @@ etalonInPin = "ai2"
 lithiumRefInPin = "ai3"
 laserWidthInPin = "ai4"
 flowInPin  = "ai5"
-pin6Pin    ="ai6"
+laserPowerIn    ="ai6"
 galvoInRawPin="ai7"
 servoPin="ctr0"
 shutterPin="port0/line1"
 pinNameList      =[galvoOutPin,flowOutPin,galvoInPin,pin1Pin       ,etalonInPin    ,lithiumRefInPin,laserWidthInPin
-    ,flowInPin,galvoInRawPin,pin6Pin,servoPin,shutterPin]
+    ,flowInPin,galvoInRawPin,laserPowerIn,servoPin,shutterPin]
 pinVoltRangeList =[[-5.0,5.0]  ,[0,4.9]   ,[-5.0,5.0] ,[-10.0,10.0],[-10.0,10.0]     ,[-5.0,0.0 ]  ,[-10.0,10.0]
     ,[-10.0,10.0],[-1.0,1.0]   ,[-10.0,10.0],[None,None],[None,None]]
 pinTypeList      =["out","out","in","in","in","in", "in", "in","in","in","counterOut","digitalOut"]
@@ -111,8 +111,8 @@ F3Sep=-6.929E6
 
 
 #----------Laser scanning constants--------
-minScanVal=-4.0 #minimum expected scan value
-maxScanVal=4.0 #maximum expected scan value
+minScanVal=-4.5 #minimum expected scan value
+maxScanVal=4.5 #maximum expected scan value
 timePerVolt=.250 #seconds that it should take to scan a volt. This is so the laser doesn't lose lock
                #you can't let it scan too fast
 fullScanRange=maxScanVal-minScanVal #the total scan range

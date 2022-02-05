@@ -57,6 +57,10 @@ class Sweeper:
         #range must be less than or equal to DAQVoltArr's range. The loop searchs for which step is next, jumps to that point
         #and then increments the counter.
         self._initialize_Cameras()
+        if self.cameraNear is not None:
+            for _ in range(10):
+                self.cameraNear.aquire_Image()
+
         i=0 #counter for DAQVoltArr
         j=0 #coutner for imageVoltArr
         loop=True
@@ -121,7 +125,7 @@ class Sweeper:
                 #there is no camera active for a given image the entry is None
                 takeImage=False
         progressBar.close()
-        time.sleep(.001)#like I said above. Pause to allow the progress bar to finish writting so it doesn't get messed up
+        time.sleep(.01)#like I said above. Pause to allow the progress bar to finish writting so it doesn't get messed up
         print('-----END OF SWEEP-----')
         self._close_DAQ_Pins()
         self._close_Cameras()

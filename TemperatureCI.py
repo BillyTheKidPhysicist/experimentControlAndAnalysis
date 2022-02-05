@@ -8,7 +8,7 @@ import scipy.special as sps
 import scipy.optimize as spo
 from MakeMHzScale import MHzScale
 import scipy.ndimage as spni
-from DataAnalysis import fitPixelData, spectralProfile
+from DataAnalysis import multi_Voigt
 import scipy.interpolate as spi
 
 def calculateTemp(dF0,f0=gv.Li_D2_Freq,MHz=True):
@@ -21,9 +21,9 @@ def calculateTemp(dF0,f0=gv.Li_D2_Freq,MHz=True):
 
 #----------------IMPORT AND RANGLE IMAGES INTO RIGHT SHAPE-----------
 #Directory
-path = "C:\Data\Runs\\2_9_21"
+path = "C:\Data\Runs\\6_23_21"
 os.chdir(path)
-fileName = 'run6Far'
+fileName = 'run42Far'
 
 
 #fileName='run15ShutterOpen'
@@ -81,9 +81,9 @@ for i in range(imagesArr.shape[0]):
 
 #this start and end value captures 90% of the beam in frequency space. It is used to make the single image that is the mean
 #of a stack of iamges between imStart:imEnd
-offset=-5
-imStart=68+offset
-imEnd=105+offset
+offset=1
+imStart=27+offset
+imEnd=40+offset
 imageMean=np.mean(imagesArr[imStart:imEnd],axis=0)
 
 
@@ -93,10 +93,10 @@ imageMean=np.mean(imagesArr[imStart:imEnd],axis=0)
 
 
 #crop the image to the focus to remove noise
-xStart=85
-xEnd=89
-yStart=110
-yEnd=130
+xStart=140
+xEnd=150
+yStart=60
+yEnd=160
 
 
 
@@ -107,16 +107,16 @@ yEnd=130
 # #plot what the mean image looks like
 temp=imageMean[yStart:yEnd,xStart:xEnd] #crop image to only the focus to remove noise
 
-# plt.imshow(temp)
-# plt.show()
+plt.imshow(temp)
+plt.show()
 
 # #plot the mean of the focus over the restricted images
 temp=imagesArr[imStart:imEnd,yStart:yEnd,xStart:xEnd]
 temp=np.mean(temp,axis=2)
 temp=np.mean(temp,axis=1)
-# plt.plot(temp)
-# plt.grid()
-# plt.show()
+plt.plot(temp)
+plt.grid()
+plt.show()
 
 
 #--------------SPATIAL PROFILE OF LASER----------------------
@@ -127,8 +127,8 @@ temp=np.mean(temp,axis=1)
 ya=yStart-30
 yb=yEnd+30
 
-magnification=2.77 #this can be found from using a ruler, or using optics rules.
-pixelSize=magnification*5*.025 #in units of mm. binning X magnification X pixel size
+magnification=3 #this can be found from using a ruler, or using optics rules.
+pixelSize=magnification*4*.024 #in units of mm. binning X magnification X pixel size
 
 #array of the profile
 profArr=np.mean(imageMean[ya:yb,xStart:xEnd],axis=1) #laser profile from data
@@ -164,7 +164,7 @@ plt.legend()
 plt.xlabel('Position, mm')
 plt.ylabel('Signal Strength, AU')
 plt.savefig('Spatial_'+fileName)
-# plt.show()
+plt.show()
 
 
 #----RBF fit-----
@@ -189,7 +189,7 @@ plt.axvline(x=centerZRBF,c='r',linestyle=':')
 plt.axvline(x=zArrFine[zRightArg])
 plt.axvline(x=zArrFine[zLeftArg])
 plt.grid()
-# plt.show()
+plt.show()
 
 
 
@@ -199,7 +199,7 @@ centerZ=centerZVoigt
 
 #-------------FREQUENCY PROFILE AT EACH VERTICAL PIXEL------------------
 
-def temperatureFitter(x, x0, a, sigma, gamma, b, singlePeak=True):
+def temperatureFitter(x, x0, a, sigma, gamma, b, singlePeak=False):
     #x: frequency, MHz
     #x0: center frequency, MHz
     #a: peak height, au
@@ -238,17 +238,17 @@ plt.title('T= '+str(T)+' mk,   F0= '+str(np.round(freqCenter)) +' MHz')
 
 xTest=np.linspace(imageFreqMhzArr[0], imageFreqMhzArr[-1], num=10000)
 
-# plt.scatter(imageFreqMhzArr,valArr,c='r',label='Data',s=50.0,marker='x')
-# plt.plot(imageFreqMhzArr,valArr,c='r',linestyle=':')
-# plt.plot(xTest, temperatureFitter(xTest, *params),label='Fit')
-# plt.axvline(x=freqCenter,c='black',linestyle=':',label='Peak')
-# plt.xlabel('frequency, MHz')
-# plt.grid()
-# plt.legend()
-# plt.xlabel('Frequency, MHz')
-# plt.ylabel('Signal Strength, AU')
-# plt.savefig('TotalTemperature_'+fileName)
-# plt.show()
+plt.scatter(imageFreqMhzArr,valArr,c='r',label='Data',s=50.0,marker='x')
+plt.plot(imageFreqMhzArr,valArr,c='r',linestyle=':')
+plt.plot(xTest, temperatureFitter(xTest, *params),label='Fit')
+plt.axvline(x=freqCenter,c='black',linestyle=':',label='Peak')
+plt.xlabel('frequency, MHz')
+plt.grid()
+plt.legend()
+plt.xlabel('Frequency, MHz')
+plt.ylabel('Signal Strength, AU')
+plt.savefig('TotalTemperature_'+fileName)
+plt.show()
 
 
 gammaList=[]
@@ -313,7 +313,7 @@ for i in range(yStart,yEnd):
 
         R2=[]
 
-        for i in range(0, 150):
+        for i in range(0, 75):
             value_fit=fitLockedSigma(imageFreqMhzArr[i], *paramsLoopSigmaLocked)
             value_data=valArr[i]
             difference=(value_data-value_fit)**2 / error

@@ -27,9 +27,11 @@ class fitSolutionClass:
     def get_Temperature(self):
         return self.fitResultsDict['temperature']
     def get_Params(self):
-        pass
+        return self._fit_params
+        # pass
     def _fill_fitResultsDict(self):
         v0, a, b, sigma, gamma=self._dataAnalyzerObject.params
+
         self.fitResultsDict['center frequency']=v0
         self.fitResultsDict['signal height']=a
         self.fitResultsDict['vertical offset']=b
@@ -114,7 +116,7 @@ class _DataAnalyzer:
         #lensHeating: Include the effects of the convolution with the lens output transverse velocity distribution. This
         #is a form of fake 'heating', so should be deconvolved from the signal.
         #vTMaxLens: transverse velocity maximum at lens output. This is used to calculate the geoemtric 'heating'
-        #gamme: value of gamma. Set to None to enable free fitting of gamma. Set to a specific value to lock to that
+        #gammeMin: value of gamma. Set to None to enable free fitting of gamma. Set to a specific value to lock to that
         #value, or allow to go above depending on gammaFloor
         #laserJitter: Jitter of laser, standard deviation, MHz.
 
@@ -193,7 +195,7 @@ class _DataAnalyzer:
         sigma=np.sqrt(sigma**2+laserJitter**2) #gaussian standard deviation. laserJitter is assumed to be gaussian here
 
         if peakMode=='multi':
-            profile+=self._multi_Voigt(v, v0, a, sigma, gamma)
+            profile+=self._multi_Voigt(v, v0, a, sigma, gamma = gamma)
         else:
             profile+=self._voigt(v, v0, a, sigma, gamma)
         if freqTMaxLens is not None:

@@ -30,14 +30,14 @@ plt.plot(xvalue_t,gaussian(xvalue_t,*params_t))
 plt.show()
 
 optimal_w=params_t[2]
-print('Best estimate for w_t:',optimal_w)
+print('Best estimate for w_t (mm):',optimal_w)
 test_size=0.075
 chi_squared=[]
 w_test=[]
+
 for w_value in np.arange(optimal_w-test_size, optimal_w+test_size, test_size/50):
 
     w_test.append(w_value)
-
 
     def gaussianFixed(x, x0, A):
         w=w_value
@@ -62,7 +62,7 @@ for w_value in np.arange(optimal_w-test_size, optimal_w+test_size, test_size/50)
     # plt.scatter(xvalue_t,yvalue_t)
     # plt.show()
 
-find_Chi_Squared_Uncertainty(w_test, chi_squared)
+# find_Chi_Squared_Uncertainty(w_test, chi_squared)
 
 txtfile = open("7_20_2021_laserChar_l.txt", "r")
 
@@ -82,15 +82,16 @@ plt.plot(xvalue_l,gaussian(xvalue_l,*params_l))
 plt.show()
 
 optimal_w=params_l[2]
-print('Best estimate for w_l:',optimal_w)
+print('Best estimate for w_l (mm):',optimal_w)
 test_size=4.5
 chi_squared=[]
 w_test=[]
-for w_value in np.arange(optimal_w-test_size, optimal_w+test_size, test_size/50):
+
+sigma_squared=np.square(np.subtract(yvalue_l, gaussian(xvalue_l,*params_l)))
+
+for w_value in np.linspace(optimal_w*0.9, optimal_w*1.1, num=500):
 
     w_test.append(w_value)
-
-
     def gaussianFixed(x, x0, A):
         w=w_value
         return gaussian(x,x0,A,w)
@@ -98,20 +99,19 @@ for w_value in np.arange(optimal_w-test_size, optimal_w+test_size, test_size/50)
 
     guess_fixed=[60,10]
 
-    params_t_fixed=spo.curve_fit(gaussianFixed, xvalue_l, yvalue_l,
+    params_l_fixed=spo.curve_fit(gaussianFixed, xvalue_l, yvalue_l,
                                        p0=guess_fixed)[0]
 
-    R2=[]
-    for i in np.arange(0, len(xvalue_l)):
-        value_fit=gaussianFixed(xvalue_l[i], *params_t_fixed)
-        value_data=yvalue_l[i]
-        difference=(value_fit-value_data)**2
-        R2.append(difference)
+    R_wl=np.subtract(yvalue_l, gaussianFixed(xvalue_l, *params_l_fixed))
+    R2_wl=np.square(R_wl)
 
-    chi_squared.append(np.sum(R2))
+    chi_squared_w=np.sum(np.divide(R2_wl, sigma_squared))
 
+    chi_squared.append(chi_squared_w)
     # plt.plot(xvalue_t,gaussianFixed(xvalue_t,*params_t_fixed))
     # plt.scatter(xvalue_t,yvalue_t)
     # plt.show()
 
-find_Chi_Squared_Uncertainty(w_test, chi_squared)
+w_l_uncertainty = find_Chi_Squared_Uncertainty(w_test, chi_squared, True)
+
+print('w_l uncertainty (mm):', w_l_uncertainty)

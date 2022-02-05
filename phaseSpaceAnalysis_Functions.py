@@ -37,11 +37,11 @@ def get_Images_Array_And_MHz_Scale_Arr(folderPath,runName):
     #--------------MAKE MHZ SCALE-------------------------
 
     #get MHS array
-    infoFile=open(runName[:-3]+'Info.txt')
+    infoFile=open(runName[:-4]+'Info.txt')
     imagesStartVolt=float(infoFile.readline().split(',')[1])
     imagesStopVolt=float(infoFile.readline().split(',')[1])
     #print(startVolt,stopVolt)
-    dataFileName=runName[:-3]+'DAQData.csv'
+    dataFileName=runName[:-4]+'DAQData.csv'
     DAQData=np.loadtxt(dataFileName,delimiter=',')
     MHZMaker=MHzScale(DAQData)
     returnFitFunc=False

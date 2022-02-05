@@ -38,7 +38,9 @@ class MHzScale:
             print('---------END WARNING---------------')
         self.galvoVoltArrRaw=self.DAQData[:,0]
         MHzScaleArr=(self.galvoVoltArrRaw-peak1VoltMean)*MHzPerVolt
+        # plt.plot(MHzScaleArr,self.LiRefVoltArr)
         # plt.plot(MHzScaleArr,fitFuncVolt(self.galvoVoltArrRaw))
+        # plt.grid()
         # plt.show()
         fitFunc= lambda x: fitFuncVolt((x/MHzPerVolt+peak1VoltMean)) #convert voltage to frequency for fit func
         if returnFitFunc==False:
@@ -50,6 +52,7 @@ class MHzScale:
     def signal_Profile(v,v0, doubletSepMajor,doubletSepMinor,  aPeak1, aPeak2, aPeak3, aPeak4, aLeft,aCenter,aRight,
                        sigmaMain,sigmaLeft,sigmaCenter,sigmaRight,offset):
 
+        #doubletSepMajor = 1.41
         signal=aPeak1*gaussian_Normalized_Height(v,v0-doubletSepMinor/2,sigmaMain)
         signal+=aPeak2*gaussian_Normalized_Height(v,v0+doubletSepMinor/2,sigmaMain)
         signal+=aPeak3*gaussian_Normalized_Height(v,v0+doubletSepMajor-doubletSepMinor/2,sigmaMain)
@@ -138,19 +141,22 @@ class MHzScale:
         params=sol.x
         modelFitCostMaximum=.001
         if sol.fun/self.LiRefVoltArr.shape[0]>modelFitCostMaximum:
-            plt.plot(self.galvoVoltArrRaw, self.LiRefVoltArr)
-            plt.plot(self.galvoVoltArrRaw, self.signal_Profile(self.galvoVoltArrRaw, *params))
-            plt.show()
-            raise Exception('Model appears to fit poorly. This may overly convservative though')
+            print('Model appears to fit poorly. This may overly convservative though')
+            gv.warning_Sound()
+            # plt.title('Potential poor fit for frequency')
+            # plt.plot(self.galvoVoltArrRaw, self.LiRefVoltArr)
+            # plt.plot(self.galvoVoltArrRaw, self.signal_Profile(self.galvoVoltArrRaw, *params))
+            # plt.show()
         params=sol.x
         fitFunc=lambda x: self.signal_Profile(x,*params)
 
         peak1Volt=params[0]
         peak2Volt=peak1Volt+params[1]
-        #todo: Make these plots get saved
+        # todo: Make these plots get saved
         # plt.plot(self.galvoVoltArrRaw, self.LiRefVoltArr)
         # plt.plot(self.galvoVoltArrRaw, self.signal_Profile(self.galvoVoltArrRaw, *params))
         # plt.axvline(x=peak1Volt,c='black')
         # plt.axvline(x=peak2Volt,c='black')
         # plt.show()
+
         return peak1Volt,peak2Volt,fitFunc

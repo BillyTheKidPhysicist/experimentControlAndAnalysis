@@ -604,7 +604,7 @@ class ExperimentGUI:
         plt.suptitle('Signal vs Frequency with reference cell')
         T=spectralFit.fitResultsDict['temperature']
         plt.title('Atom Velocity = '+str(int(np.abs(atomVelocity)))+ 'm/s. Temp= '+str(np.round(1e3*T))+' mk')
-        plt.xlabel('Frequency, MHz')
+        plt.xlabel('Frequency (MHz)')
         ax1.plot(x1,y1,c='r',label='data')
         ax1.plot(xPlotDense,denseSpectralProfile,label='spectroscopy fit')
 
@@ -615,8 +615,8 @@ class ExperimentGUI:
         ax1.axvline(x=F0, c='black', linestyle=':')
         ax1.legend(loc=1)
         ax2.legend(loc=0)
-        ax1.set_ylabel('Camera Signal, au')
-        ax2.set_ylabel('Ref Cell Signal, au')
+        ax1.set_ylabel('Camera Signal (a.u.)')
+        ax2.set_ylabel('Ref Cell Signal (a.u.)')
         ax1.grid()
         plt.savefig(folderPath+'\\'+fileName+self.cameraVarAnl.get())
         plt.show()

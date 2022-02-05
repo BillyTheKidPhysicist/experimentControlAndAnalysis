@@ -25,12 +25,12 @@ def voigtImageFit(x, x0, a, sigma, gamma, b):
 
 
 #Directory
-path = "C:\Data\Runs\\3_29_21"
+path = "C:\Data\Runs\\6_23_21"
 os.chdir(path)
-fileName='run33Far'
+fileName = 'run18Far'
 #Opening fits file and creating array. Flip the y axis such that image is oriented correctly.
 fitsFile = fits.open(fileName+'.fits')
-imagesList = fitsFile[0].data
+imagesList = fitsFile[0].data 
 imagesArr=imagesList.astype(float)
 imagesArr=np.flip(imagesArr,axis=1)
 trimVal=3e3
@@ -44,11 +44,16 @@ for i in range(imagesArr.shape[0]):
 #crop the image to the focus to remove noise
 xStart=0
 xEnd=-1
-yStart=40
-yEnd=100
+yStart=0
+yEnd=800
 temp=imagesArr[:,yStart:yEnd,xStart:xEnd]
+
+
 temp=np.mean(temp,axis=2)
 temp=np.mean(temp,axis=1)
+
+
+
 
 guess=[np.argmax(temp),np.max(temp)-np.min(temp),1,1,np.min(temp)]
 x=np.arange(temp.shape[0])
@@ -140,10 +145,10 @@ prettyImage=prettyImage-imageBackGround
 # prettyImage=spni.gaussian_filter(prettyImage, 1.0)
 # prettyImage=adjust_Image_To_Laser_Power(prettyImage)
 prettyImage=adjust_Image_To_Peak_Brightness_Each_Column(prettyImage)
-# cutoff=30
-# prettyImage[prettyImage<cutoff]=cutoff
-# cutoff2=180
-# prettyImage[prettyImage>cutoff2]=cutoff2
+cutoff=30
+prettyImage[prettyImage<cutoff]=cutoff
+cutoff2=180
+prettyImage[prettyImage>cutoff2]=cutoff2
 plt.imshow(prettyImage)#,cmap='gray')
 plt.show()
 
