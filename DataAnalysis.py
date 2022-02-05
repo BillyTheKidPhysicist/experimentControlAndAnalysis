@@ -19,7 +19,7 @@ class fitSolutionClass:
         self.fitResultsDict={} #dictionary to hold parameters from solution. This makes it much harder to get confused about
         #which value goes with which param.
         self._fit_params=dataAnalyzerObject.params
-        self._unitsListForParamters=['MHz','au','au','MHz','MHz','MHz','','','m/s','K']
+        self._unitsListForParamters=['MHz','au','au','MHz','MHz','MHz','','','m/s','mK']
         self._dataAnalyzerObject=dataAnalyzerObject
         self._fill_fitResultsDict()
         self.imageFreqArr=dataAnalyzerObject.imageFreqArr
@@ -39,7 +39,7 @@ class fitSolutionClass:
         self.fitResultsDict['gamma, FWHM']=gamma
         self.fitResultsDict['laser jitter']=self._dataAnalyzerObject.laserJitter
         self.fitResultsDict['peak mode']=self._dataAnalyzerObject.peakMode
-        self.fitResultsDict['including lens heating']=self._dataAnalyzerObject.lensHeating
+        self.fitResultsDict['including lens heating']=False if self._dataAnalyzerObject.freqTMaxLens is None else True
         self.fitResultsDict['max transverse lens velocity']=self._dataAnalyzerObject.vTMaxLens
         self.fitResultsDict['temperature']=self._dataAnalyzerObject.T
     def print_Results(self):
@@ -64,6 +64,7 @@ class fitSolutionClass:
         stringToPrint+='|Solution Parameters (rounded to '+str(precision)+' sig figs): \n'
         i=0
         for name,value in self.fitResultsDict.items():
+            print(name,value)
             unit=self._unitsListForParamters[i]
             if type(value)==bool or type(value)==str:
                 if value==True and type(value) is not str:
@@ -72,6 +73,8 @@ class fitSolutionClass:
                     stringValue='False'
                 else:
                     stringValue=value
+            elif value is None:
+                stringValue='None'
             else:
                 stringValue=str(sigfig.round(value,precision))
             stringToPrint+='|'+name+": "+stringValue+' '+unit+'\n'
@@ -79,12 +82,12 @@ class fitSolutionClass:
         stringToPrint+='|---------------------------------'
         return stringToPrint
 
-def fit_Spectral_Data(imageFreqArr, imageSignalArr, peakMode='multi', lensHeating=False,vTMaxLens=10.0
-                             ,gammaMin=gv.LiTau/1E6,laserJitter=0.0):
+def fit_Spectral_Data(imageFreqArr, imageSignalArr, peakMode='multi', vTMaxLens=None
+                             ,gammaMin=gv.LiTau/1E6,laserJitter=0.0,gammaLockedToNatural=False):
 
     dataAnalyzerObject=_DataAnalyzer()
-    dataAnalyzerObject.fit_Spectral_Profile(imageFreqArr,imageSignalArr,peakMode,lensHeating,vTMaxLens,gammaMin,
-                                                                                laserJitter)
+    dataAnalyzerObject.fit_Spectral_Profile(imageFreqArr,imageSignalArr,peakMode,vTMaxLens,gammaMin,
+                                                                                laserJitter,gammaLockedToNatural)
     fitSolutionObject=fitSolutionClass(dataAnalyzerObject)
     return fitSolutionObject
 
@@ -107,26 +110,30 @@ class _DataAnalyzer:
         self.laserJitter=None #laser jitter, MHz
         self.imageFreqArr=None #1D array of frequency values corresponding to each image
         self.imageSignalArr=None #1D array of means or sums of image regions of interest
-        self.lensHeating=None #wether lens heating is being considered
-    def fit_Spectral_Profile(self,imageFreqArr, imageSignalArr, peakMode, lensHeating,vTMaxLens,gammaMin,laserJitter):
+        self.gammaLockedToNatural=None
+    def fit_Spectral_Profile(self,imageFreqArr, imageSignalArr, peakMode,vTMaxLens,gammaMin,laserJitter,
+                             gammaLockedToNatural):
         #Fit spectral data. Can be (single peak or multipeak) and include the velocity distribution of lens.
         #imageFreqArr: frequency, or anything else, scale
         #imageSignalArr: Flourescence signal
         #peakMode: Use either multipeak (6 peaks) or single peak.
-        #lensHeating: Include the effects of the convolution with the lens output transverse velocity distribution. This
-        #is a form of fake 'heating', so should be deconvolved from the signal.
-        #vTMaxLens: transverse velocity maximum at lens output. This is used to calculate the geoemtric 'heating'
+        #vTMaxLens: transverse velocity maximum at lens output. This is used to calculate the geoemtric 'heating'.
+        #If None don't apply anything'
         #gammeMin: value of gamma. Set to None to enable free fitting of gamma. Set to a specific value to lock to that
         #value, or allow to go above depending on gammaFloor
         #laserJitter: Jitter of laser, standard deviation, MHz.
+        #gammaLockedToNatural: set gamma to natural linewidth
 
 
-        if lensHeating==False:
-            freqTMaxLens=None
+        if vTMaxLens is None:
+            self.freqTMaxLens=None
         else:
-            freqTMaxLens=(vTMaxLens/gv.cLight)*gv.Li_D2_Freq/1e6 #transverse frequency maximum lens, MhZ
-        self.lensHeating=lensHeating
-        self.freqTMaxLens=freqTMaxLens
+            self.freqTMaxLens=(vTMaxLens/gv.cLight)*gv.Li_D2_Freq/1e6 #transverse frequency maximum lens, MhZ
+        gammaMax=30.0
+        assert gammaMin<gammaMax
+        if gammaLockedToNatural==True:
+            assert gammaMin==gv.LiTau/1e6
+        self.gammaLockedToNatural=gammaLockedToNatural
         self.peakMode=peakMode
         self.laserJitter=laserJitter
         self.vTMaxLens=vTMaxLens
@@ -141,13 +148,15 @@ class _DataAnalyzer:
             #using the scipy curve_fit this would be far to slow. It's better to compare entire fits at once, rather
             #than compare a fit point by point which requires recomputing the convolution over an dover again.
             v0, a, b, sigma, gamma=params
-            fit=self._spectral_Profile(self.imageFreqArr,v0,a,b,sigma,gamma,freqTMaxLens,peakMode,laserJitter)
+            fit=self._spectral_Profile(self.imageFreqArr,v0,a,b,sigma,gamma,self.freqTMaxLens,self.peakMode,self.laserJitter)
             return self._cost(imageSignalArr,fit)
         deltaFMax=100
         F0Guess=self.imageFreqArr[np.argmax(self.imageSignalArr)]
         aGuess=np.max(self.imageSignalArr)-np.min(self.imageSignalArr)
         bGuess=np.min(self.imageSignalArr)
-        bounds=[(F0Guess-deltaFMax,F0Guess+deltaFMax),(0.0,aGuess*2),(bGuess-aGuess,bGuess+aGuess),(0,30),(gammaMin,30)]
+        if self.gammaLockedToNatural==True:
+            gammaMax=gammaMin+1e-6
+        bounds=[(F0Guess-deltaFMax,F0Guess+deltaFMax),(0.0,aGuess*2),(bGuess-aGuess,bGuess+aGuess),(0,30),(gammaMin,gammaMax)]
         np.random.seed(42) #seed the generator to make results repeatable
         sol=spo.differential_evolution(minimize,bounds,polish=False) #a type of genetic algorithm, very robust.
         np.random.seed(int(time.time())) #resead to make pseudorandom
@@ -155,14 +164,13 @@ class _DataAnalyzer:
         self.T=self._calculate_Temp(self.params[3])
         self.F0=self.params[0]
 
-        # print(bounds)
-        # print(params)
-        # xTest=np.linspace(imageFreqArr[0],imageFreqArr[-1],num=1000)
-        # plt.grid()
-        # plt.plot(imageFreqArr,imageSignalArr,marker='x')
-        # plt.plot(xTest,self.spectral_Fit(xTest))
-        # plt.plot(imageFreqArr,test(imageFreqArr,*self.params))
-        # plt.show()
+        print(bounds)
+        print(self.params)
+        xTest=np.linspace(imageFreqArr[0],imageFreqArr[-1],num=1000)
+        plt.grid()
+        plt.plot(imageFreqArr,imageSignalArr,marker='x')
+        plt.plot(xTest,self.spectral_Fit(xTest))
+        plt.show()
     def catch_Errors_And_Give_Warnings(self):
         if self.peakMode!='multi' and self.peakMode!='single':
             raise Exception('Invalid peak mode. Choose \'multi\' or \'single\'')
@@ -173,7 +181,7 @@ class _DataAnalyzer:
         if not 100.0>self.laserJitter>=0.0:
             raise Exception('Laser jitter must be in MHz and positive and it appears not to be')
         maxReasonableVTransLen=20.0
-        if not maxReasonableVTransLen>self.vTMaxLens>=0.0:
+        if self.vTMaxLens is not None and (not maxReasonableVTransLen>self.vTMaxLens>=0.0):
             raise Exception('Transverse particle velocity leaving lens is set to a value that does not make sense. \n'
                             'must be m/s, positive and less than a reasonably sized value')
         maxExpectedFreqInMHz=5000
@@ -294,7 +302,8 @@ class _DataAnalyzer:
             f0=f0/1e6
 
         sigmaVelocity=(sigma/f0)*gv.cLight
-        return sigmaVelocity**2*gv.massLi7/gv.kB
+        toMkelvin=1e3
+        return toMkelvin*sigmaVelocity**2*gv.massLi7/gv.kB
     def calculate_Temp(self,sigma,MHz=True):
         return self._calculate_Temp(sigma,MHz=MHz)
 

@@ -6,6 +6,7 @@ import globalVariables as gv
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+import time
 from astropy.io import fits
 import scipy.special as sps
 import scipy.optimize as spo
@@ -54,7 +55,48 @@ def get_Images_Array_And_MHz_Scale_Arr(folderPath,runName):
     imagesFreqMhzArr=offset+slope*imageVoltageScale
     print('this is maybe wrong')
     return imagesArr,imagesFreqMhzArr
+def extract_Sub_Image_From_Fits_Coords(images,xFitsCoord,yFitsCoord,xWidth,yWidth,overRideDataTypeWarning=False):
+    #images: A list,array or single images from which to extract the subimages
+    #FitsBoxCoords: (x0,y0) coordinates of fit file box to extract subimage from
+    #FitsBoxeSize: (widthx,widthy) size of fits file box
+    if not all(isinstance(val,int) for val in [xFitsCoord,yFitsCoord,xWidth,yWidth]):
+        raise Exception("coords and dimensions must bet integers")
+    if isinstance(images,np.ndarray):
+        imageArr=images
+    else:
+        imageArr=np.array(images)
+    if overRideDataTypeWarning==False and imageArr.dtype != 'float64':
+        warnings.warn('\n The data type of your image is not a float. \n It is very unlikely this was intentional \n'
+        'This can have serious unintended consequences if you don\'t understand integer behaviour clearly \n '
+                      'You can')
+        time.sleep(5.0)
+    singleImage=False
+    if len(imageArr.shape)==2: # if a single image instead of a movie
+        singleImage=True
+        imageArr=np.array([imageArr]) #convert into a one frame movie
+    imageSizeY, imageSizeX=imageArr[0].shape
+    if xWidth%2!=1 or yWidth%2!=1:
+        raise Exception('Fit file box dimensions must be even for this to work simply')
+    if not (xFitsCoord+xWidth//2<imageSizeX and xFitsCoord-xWidth//2>0 ):
+        raise Exception("box in x dimension exceeds image bounds")
+    if not (yFitsCoord+yWidth//2<imageSizeY and yFitsCoord-yWidth//2>0 ):
+        raise Exception("box in y dimension exceeds image bounds")
+    xStartFits=xFitsCoord-(xWidth-1)//2
+    xEndFits=xFitsCoord+(xWidth-1)//2
+    xStartNP=xStartFits-1
+    xEndNP=xEndFits
 
+    yStartFits=yFitsCoord-(yWidth-1)//2
+    yEndFits=yFitsCoord+(yWidth-1)//2
+
+    yStartNP=(imageSizeY-yEndFits)
+    yEndNP=(imageSizeY-yStartFits)+1
+    subImages=imageArr[:, yStartNP:yEndNP, xStartNP:xEndNP]
+    if singleImage==True:
+        subImage=subImages[0]
+        return subImage
+    else:
+        return subImages
 def subtract_Background(imagesArrOriginal,numFramesFromEnd):
     imagesArrCopy=imagesArrOriginal.copy()  #copy the array so we don't modify outside the function
     #Find background
