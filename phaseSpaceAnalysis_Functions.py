@@ -53,13 +53,15 @@ def get_Images_Array_And_MHz_Scale_Arr(folderPath,runName):
     slope,offset=np.polyfit(galvoVoltArr, MHzScaleArr, 1) #idk why this says there is in issue in pycharm
     imageVoltageScale=np.linspace(imagesStartVolt, imagesStopVolt, num=imagesArr.shape[0])
     imagesFreqMhzArr=offset+slope*imageVoltageScale
-    print('this is maybe wrong')
     return imagesArr,imagesFreqMhzArr
 def extract_Sub_Image_From_Fits_Coords(images,xFitsCoord,yFitsCoord,xWidth,yWidth,overRideDataTypeWarning=False):
     #images: A list,array or single images from which to extract the subimages
-    #FitsBoxCoords: (x0,y0) coordinates of fit file box to extract subimage from
-    #FitsBoxeSize: (widthx,widthy) size of fits file box
-    if not all(isinstance(val,int) for val in [xFitsCoord,yFitsCoord,xWidth,yWidth]):
+    #xFitsCoord: x coordinate in fits file of box center
+    #yFitsCoord: y coordinate in fits file of box center
+    #xWidth: x width of box in fits file
+    #yWidth: y widht of box in fits file
+    if not all(np.issubdtype(type(val),int) for val in [xFitsCoord,yFitsCoord,xWidth,yWidth]): #Have to do an annoying
+        # trick to accept numpy and python integers for these values
         raise Exception("coords and dimensions must bet integers")
     if isinstance(images,np.ndarray):
         imageArr=images

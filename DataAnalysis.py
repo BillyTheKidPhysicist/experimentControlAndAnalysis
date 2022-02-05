@@ -24,6 +24,7 @@ class fitSolutionClass:
         self._fill_fitResultsDict()
         self.imageFreqArr=dataAnalyzerObject.imageFreqArr
         self.imageSignalArr=dataAnalyzerObject.imageSignalArr
+        self.fitResiduals=dataAnalyzerObject.residuals
     def get_Temperature(self):
         return self.fitResultsDict['temperature']
     def get_Params(self):
@@ -83,7 +84,7 @@ class fitSolutionClass:
         return stringToPrint
 
 def fit_Spectral_Data(imageFreqArr, imageSignalArr, peakMode='multi', vTMaxLens=None
-                             ,gammaMin=gv.LiTau/1E6,laserJitter=0.0,gammaLockedToNatural=False):
+                             ,gammaMin=gv.LiTau/1E6,laserJitter=0.0,gammaLockedToNatural=False)->fitSolutionClass:
 
     dataAnalyzerObject=_DataAnalyzer()
     dataAnalyzerObject.fit_Spectral_Profile(imageFreqArr,imageSignalArr,peakMode,vTMaxLens,gammaMin,
@@ -111,6 +112,7 @@ class _DataAnalyzer:
         self.imageFreqArr=None #1D array of frequency values corresponding to each image
         self.imageSignalArr=None #1D array of means or sums of image regions of interest
         self.gammaLockedToNatural=None
+        self.residuals=None
     def fit_Spectral_Profile(self,imageFreqArr, imageSignalArr, peakMode,vTMaxLens,gammaMin,laserJitter,
                              gammaLockedToNatural):
         #Fit spectral data. Can be (single peak or multipeak) and include the velocity distribution of lens.
@@ -148,7 +150,7 @@ class _DataAnalyzer:
             #using the scipy curve_fit this would be far to slow. It's better to compare entire fits at once, rather
             #than compare a fit point by point which requires recomputing the convolution over an dover again.
             v0, a, b, sigma, gamma=params
-            fit=self._spectral_Profile(self.imageFreqArr,v0,a,b,sigma,gamma,self.freqTMaxLens,self.peakMode,self.laserJitter)
+            fit=self._spectral_Profile(self.imageFreqArr,v0,a,b,sigma,gamma)
             return self._cost(imageSignalArr,fit)
         deltaFMax=100
         F0Guess=self.imageFreqArr[np.argmax(self.imageSignalArr)]
@@ -163,7 +165,7 @@ class _DataAnalyzer:
         self.params=sol.x
         self.T=self._calculate_Temp(self.params[3])
         self.F0=self.params[0]
-
+        self.residuals=self.spectral_Fit(imageFreqArr)-imageSignalArr
         # print(bounds)
         # print(self.params)
         # xTest=np.linspace(imageFreqArr[0],imageFreqArr[-1],num=1000)
@@ -193,28 +195,30 @@ class _DataAnalyzer:
         #the function that returns the fit to the data provided in self.fit_Spectral_Profile.
         #v: frequency, MHz
         #return: The "signal", in arbitrary units
-        return self._spectral_Profile(v,*self.params,self.freqTMaxLens,self.peakMode,self.laserJitter)
-    def _spectral_Profile(self,v,v0,a,b,sigma,gamma,freqTMaxLens,peakMode,laserJitter):
+        return self._spectral_Profile(v,*self.params)
+    def _spectral_Profile(self,v,v0,a,b,sigma,gamma):
         #todo: this can be made more clean and logical with lens stuff
         #private method that returns the spectral profile. It may be convoluted with the geometric "heating" and or
         #contain multiple peaks
 
         profile=np.zeros(v.shape)+b
-        sigma=np.sqrt(sigma**2+laserJitter**2) #gaussian standard deviation. laserJitter is assumed to be gaussian here
+        sigma=np.sqrt(sigma**2+self.laserJitter**2) #gaussian standard deviation. laserJitter is assumed to be gaussian here
 
-        if peakMode=='multi':
+        if self.peakMode=='multi':
             profile+=self._multi_Voigt(v, v0, a, sigma, gamma = gamma)
         else:
             profile+=self._voigt(v, v0, a, sigma, gamma)
-        if freqTMaxLens is not None:
+        if self.vTMaxLens is not None:
             # plt.plot(v,profile)
             profileMax=profile.max() #to aid in normalizing and rescaling the profile after convolution
             profileMin=profile.min() #to aid in normalizing and rescaling the profile after convolution
             profile=(profile-profileMin)/(profileMax-profileMin)
             vLens=np.linspace(-(v.max()-v.min())/2,(v.max()-v.min())/2,num=v.shape[0]) #need to have the lens profile
             #centered for the convolution to preserve the center of the spectral profile that results
-            lensVelProfile=np.vectorize(self.lens_Velocity_Spread)(vLens,freqTMaxLens) #not very efficient
+            lensVelProfile=[self.lens_Velocity_Spread(v,self.vTMaxLens) for v in vLens] #not very efficient
             # plt.plot(v,lensVelProfile)
+            # plt.plot(v,profile)
+
             profile=np.convolve(lensVelProfile,profile,mode='same') #convolution has distributive property so don't need
 
             profile=(profile-profile.min())/(profile.max()-profile.min())
@@ -236,7 +240,6 @@ class _DataAnalyzer:
         t2=np.exp(-m*np.power(v-v0,2)/(2*gv.kB*T))
         return t1*t2
     @staticmethod
-    @numba.njit() #special compiler to make code run faster
     def lens_Velocity_Spread(x, x0, a=1):
         #1D transvers velocity distribution for the output of the lens. This is because the lens a circular input
         #and so creates a unique semicircular distirbution. Can be derived considering the density and y velocity as a
@@ -251,20 +254,20 @@ class _DataAnalyzer:
         #---------SINGLE VOIGT FIT---------
         #this voigt is normalized to a height of 1, then multiplied by the variable a
         #there is no yaxis offset in the voigt, that is done later
-    def _voigt(self,f, f0, a, sigma, gamma):
+    def _voigt(self,f, f0, a, sigma, gammaFWHM):
         #units must be consistent!!
         #f, frequency value
         #f0, center frequency
         #a, height of voigt
         #sigma,standard deviation of the gaussian
         #gamma, FWHM of the lorentzian
-        gamma=gamma/2  #convert lorentzian FWHM to HWHM
+        gammaHWHM=gammaFWHM/2  #convert lorentzian FWHM to HWHM
         x=f-f0
-        z=(x+gamma*1.0J)/(sigma*np.sqrt(2.0))  #complex argument
+        z=(x+gammaHWHM*1.0J)/(sigma*np.sqrt(2.0))  #complex argument
         V=np.real(spf.wofz(z))/(sigma*np.sqrt(2*np.pi))  #voigt profile
 
         #now normalize to 1 at peak, makes fitting easier
-        z0=(gamma*1.0J)/(sigma*np.sqrt(2.0))  #z at peak
+        z0=(gammaHWHM*1.0J)/(sigma*np.sqrt(2.0))  #z at peak
         V0=np.real(spf.wofz(z0))/(sigma*np.sqrt(2*np.pi))  #height of voigt at peak
         return a*V/V0  #makes the height equal to a
 
