@@ -164,13 +164,13 @@ class _DataAnalyzer:
         self.T=self._calculate_Temp(self.params[3])
         self.F0=self.params[0]
 
-        print(bounds)
-        print(self.params)
-        xTest=np.linspace(imageFreqArr[0],imageFreqArr[-1],num=1000)
-        plt.grid()
-        plt.plot(imageFreqArr,imageSignalArr,marker='x')
-        plt.plot(xTest,self.spectral_Fit(xTest))
-        plt.show()
+        # print(bounds)
+        # print(self.params)
+        # xTest=np.linspace(imageFreqArr[0],imageFreqArr[-1],num=1000)
+        # plt.grid()
+        # plt.plot(imageFreqArr,imageSignalArr,marker='x')
+        # plt.plot(xTest,self.spectral_Fit(xTest))
+        # plt.show()
     def catch_Errors_And_Give_Warnings(self):
         if self.peakMode!='multi' and self.peakMode!='single':
             raise Exception('Invalid peak mode. Choose \'multi\' or \'single\'')
